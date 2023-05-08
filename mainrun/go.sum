@@ -1,4 +1,6 @@
 go.winto.dev/errors v1.0.0 h1:Vj8dIrwLXPjvtxIU8pM0hR9kp08k0ZDH5vMjBuOJYY4=
 go.winto.dev/errors v1.0.0/go.mod h1:pw50TK5O3qUp8R9C8ut456g1XH56HDhAml8FLG+66tk=
+go.winto.dev/errors v1.0.1 h1:cWGpSlbllbMuCAN8lwIG6DJZwywU29gMpoyGcNCdh1g=
+go.winto.dev/errors v1.0.1/go.mod h1:pw50TK5O3qUp8R9C8ut456g1XH56HDhAml8FLG+66tk=
 go.winto.dev/typedcontext v1.0.0 h1:NmfA5tB1DoIehtbtA7qZ2RRiQmoeMmIi//xtmbq8sjY=
 go.winto.dev/typedcontext v1.0.0/go.mod h1:nYSpOg+UUA5bsDZgRcyppqeQ6LEyN5SR6ny6Mouc0LI=
