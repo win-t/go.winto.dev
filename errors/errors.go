@@ -50,7 +50,7 @@ func Join(err ...error) error {
 // will panic if err is not nil
 func Check(err error) {
 	if err != nil {
-		panic(newWrappedErr(err, 1))
+		panic(traceIfNeeded(err, 1))
 	}
 }
 
