@@ -78,3 +78,11 @@ func Interrupted(ctx context.Context) os.Signal {
 	}
 	return nil
 }
+
+// return ExitHandler that printf the input and exit with code 1
+func Exitf(format string, args ...any) error {
+	return ExitHandler(func() (exitCode int) {
+		fmt.Fprintf(os.Stderr, format, args...)
+		return 1
+	})
+}
