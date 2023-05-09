@@ -30,21 +30,21 @@ func Unwrap(err error) error {
 //
 // [stdlib errors.New]: https://pkg.go.dev/errors/#New
 func New(text string) error {
-	return newWrappedErr(stderrors.New(text), 1)
+	return newTracedErr(stderrors.New(text), 1)
 }
 
 // see [stdlib fmt.Errorf]
 //
 // [stdlib fmt.Errorf]: https://pkg.go.dev/fmt/#Errorf
 func Errorf(format string, a ...any) error {
-	return newWrappedErr(fmt.Errorf(format, a...), 1)
+	return newTracedErr(fmt.Errorf(format, a...), 1)
 }
 
 // see [stdlib errors.Join]
 //
 // [stdlib errors.Join]: https://pkg.go.dev/errors/#As
 func Join(err ...error) error {
-	return newWrappedErr(stderrors.Join(err...), 1)
+	return newTracedErr(stderrors.Join(err...), 1)
 }
 
 // will panic if err is not nil
@@ -57,6 +57,9 @@ func Check(err error) {
 // Expect will panic with message if fact is false
 func Expect(fact bool, message string) {
 	if !fact {
-		panic(newWrappedErr(stderrors.New(message), 1))
+		if message == "" {
+			message = "expectation failed"
+		}
+		panic(newTracedErr(stderrors.New(message), 1))
 	}
 }

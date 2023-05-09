@@ -7,7 +7,9 @@ import (
 	"sync"
 )
 
-var locPool sync.Pool
+type pcbuff = [512]uintptr
+
+var pcbuffPool sync.Pool
 
 // Single location of the trace
 type Location struct {
@@ -46,10 +48,8 @@ func (l *Location) InPkg(pkgs ...string) bool {
 
 // skip==0 mean stack trace for where getLocs is called
 func getLocs(skip int) (locations []Location) {
-	type pcbuff = [512]uintptr
-
 	var data *pcbuff
-	if tmp, ok := locPool.Get().(*pcbuff); ok {
+	if tmp, ok := pcbuffPool.Get().(*pcbuff); ok {
 		data = tmp
 	} else {
 		data = new(pcbuff)
@@ -80,7 +80,7 @@ func getLocs(skip int) (locations []Location) {
 		}
 	}
 
-	locPool.Put(data)
+	pcbuffPool.Put(data)
 
 	return
 }

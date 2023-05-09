@@ -14,16 +14,16 @@ func Catch(f func() error) (err error) {
 
 		recErr, ok := rec.(error)
 		if !ok {
-			err = newWrappedErr(fmt.Errorf("%v", rec), 1)
+			err = newTracedErr(fmt.Errorf("%v", rec), 1)
 			return
 		}
 
-		if findWrappedErr(recErr) != nil {
+		if findTracedErr(recErr) != nil {
 			err = recErr
 			return
 		}
 
-		err = newWrappedErr(recErr, 1)
+		err = newTracedErr(recErr, 1)
 	}()
 
 	return f()
@@ -31,9 +31,7 @@ func Catch(f func() error) (err error) {
 
 // like [Catch] but suitable for function that return 2 values
 func Catch2[A any](f func() (A, error)) (A, error) {
-	var (
-		a A
-	)
+	var a A
 	return a, Catch(func() error {
 		var err error
 		a, err = f()
