@@ -1,4 +1,4 @@
-# typedcontext.
+# typedcontext
 
 [![GoReference](https://pkg.go.dev/badge/go.winto.dev/typedcontext)](https://pkg.go.dev/go.winto.dev/typedcontext)
 
