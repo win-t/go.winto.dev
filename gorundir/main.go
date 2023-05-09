@@ -24,7 +24,7 @@ func main() {
 	check(err)
 
 	stat, err := os.Stat(targetDir)
-	if errors.Is(err, os.ErrNotExist) || (stat != nil && !stat.IsDir()) {
+	if errors.Is(err, os.ErrNotExist) || stat == nil || !stat.IsDir() {
 		exitErr(relDir + " is not valid directory")
 	}
 

@@ -1,4 +1,4 @@
-# What is this?
+# gorundir
 
 simple utility to `go run` your package when you are outside the module directory
 

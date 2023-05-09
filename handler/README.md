@@ -1,4 +1,4 @@
-# go-handler
+# handler
 
 [![GoDoc](https://pkg.go.dev/badge/go.winto.dev/handler)](https://pkg.go.dev/go.winto.dev/handler)
 

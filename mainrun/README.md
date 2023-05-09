@@ -7,9 +7,9 @@ Utility for main package
 ## How to use
 
 ```go
-func main() { mainrun.Exec(run) }
+func main() { mainrun.Exec(realmain) }
 
-func run(ctx context.Context) error {
+func realmain(ctx context.Context) error {
 
   // ...
 
@@ -17,8 +17,7 @@ func run(ctx context.Context) error {
 }
 ```
 
-The `ctx` passed to run will be cancelled if the program caught os signal
-(graceful shutdown).
+The `ctx` passed to `realmain` will be cancelled if the program caught os signal for graceful shutdown.
 
 The returned `error` will be printed to `stderr` and the program will be exit
 with exit code 1
