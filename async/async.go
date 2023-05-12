@@ -1,6 +1,10 @@
 package async
 
-import "go.winto.dev/errors"
+import (
+	"sync"
+
+	"go.winto.dev/errors"
+)
 
 // Run the f function in new go routine, and return chan to get the value returned by f
 func Run(f func() error) <-chan error {
@@ -22,4 +26,15 @@ func Run2[R any](f func() (R, error)) <-chan Result[R] {
 		ch <- Result[R]{r, err}
 	}()
 	return ch
+}
+
+type WaitGroup struct{ sync.WaitGroup }
+
+// Run f in new goroutine, and register it into the waitgroup
+func (wg *WaitGroup) Go(f func()) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		f()
+	}()
 }
