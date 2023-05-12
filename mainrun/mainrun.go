@@ -7,82 +7,132 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 
 	"go.winto.dev/errors"
 	"go.winto.dev/typedcontext"
 )
 
-// Run f, this function never return.
+// Execute f.
 //
-// ctx passed to f will be canceled when graceful shutdown is requested,
-// if f returned error or panic, then log it and run os.Exit(1), otherwise run os.Exit(0).
+// this function never return.
 //
-// if err returned by f implement HasExitHandler, that handler will be used.
-func Exec(f func(ctx context.Context) error) {
-	exitCode := 1
-	defer func() { os.Exit(exitCode) }()
-
-	var sigCtx osSignal
-	ctx, cancel := context.WithCancel(typedcontext.New(context.Background(), &sigCtx))
-	defer cancel()
-
-	go func() {
-		defer cancel()
-
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, getInterruptSigs()...)
-		sig := <-c
-		signal.Stop(c)
-
-		sigCtx.Lock()
-		sigCtx.Signal = sig
-		sigCtx.Unlock()
+// ctx passed to f will be canceled when graceful shutdown is requested or f return
+// if f panic, it will be printed to stderr with stack trace.returned
+//
+// if the panic value implement [HasExitDetail], it will be used.
+func Exec(f func(ctx context.Context)) {
+	var exit ExitDetail
+	defer func() {
+		if len(exit.Message) > 0 {
+			if exit.Message[len(exit.Message)-1] == '\n' {
+				fmt.Fprint(os.Stderr, exit.Message)
+			} else {
+				fmt.Fprintln(os.Stderr, exit.Message)
+			}
+		}
+		os.Exit(exit.Code)
 	}()
 
-	err := errors.Catch(func() error { return f(ctx) })
+	var data contextData
+
+	wg := data.getWg()
+	defer wg.Wait()
+
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	defer cancelCtx()
+
+	ctx = typedcontext.New(ctx, &data)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
+		defer signal.Stop(c)
+
+		select {
+		case <-ctx.Done():
+		case sig := <-c:
+			data.setSignal(sig)
+			cancelCtx()
+		}
+	}()
+
+	err := errors.Catch(func() error { f(ctx); return nil })
 	if err == nil {
-		exitCode = 0
 		return
 	}
 
-	if h := (HasExitHandler)(nil); errors.As(err, &h) {
-		errors.Catch(func() error { exitCode = h.ExitHandler()(); return nil })
-		return
+	if d := (HasExitDetail)(nil); errors.As(err, &d) {
+		exit = d.ExitDetail()
+	} else {
+		exit = ExitDetail{
+			Code: 1,
+			Message: errors.FormatWithFilter(
+				err,
+				func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainrun") },
+			),
+		}
 	}
-
-	fmt.Fprintln(os.Stderr,
-		errors.FormatWithFilter(
-			err,
-			func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainrun") },
-		),
-	)
 }
 
-type ExitHandler func() (exitCode int)
-type HasExitHandler interface{ ExitHandler() ExitHandler }
+type ExitDetail struct {
+	Code    int
+	Message string
+}
 
-type osSignal struct {
+type HasExitDetail interface {
+	ExitDetail() ExitDetail
+}
+
+func (e ExitDetail) Error() string {
+	return fmt.Sprintf("exit (%d): %s", e.Code, e.Message)
+}
+
+func (e ExitDetail) ExitDetail() ExitDetail {
+	return e
+}
+
+type contextData struct {
 	sync.Mutex
-	os.Signal
+	sig os.Signal
+	wg  sync.WaitGroup
 }
 
-func (f ExitHandler) Error() string            { return "program executed unsuccessfully" }
-func (f ExitHandler) ExitHandler() ExitHandler { return f }
+func (d *contextData) setSignal(sig os.Signal) {
+	d.Lock()
+	d.sig = sig
+	d.Unlock()
+}
+
+func (d *contextData) getSignal() os.Signal {
+	if d == nil {
+		return nil
+	}
+	var sig os.Signal
+	d.Lock()
+	sig = d.sig
+	d.Unlock()
+	return sig
+}
+
+func (d *contextData) getWg() *sync.WaitGroup {
+	if d == nil {
+		return nil
+	}
+	return &d.wg
+}
 
 // Return nil if graceful shutdown is not requested yet, otherwise return the signal
 func Interrupted(ctx context.Context) os.Signal {
-	if s, ok := typedcontext.Get[*osSignal](ctx); ok {
-		s.Lock()
-		defer s.Unlock()
-		return s.Signal
-	}
-	return nil
+	s, _ := typedcontext.Get[*contextData](ctx)
+	return s.getSignal()
 }
 
-// return ExitHandler that printf the input and exit with code 1
-func Exitf(format string, args ...any) error {
-	return ExitHandler(func() (exitCode int) {
-		fmt.Fprintf(os.Stderr, format, args...)
-		return 1
-	})
+// Return WaitGroup that will be waited before Exec terminated
+func WaitGroup(ctx context.Context) *sync.WaitGroup {
+	wg, _ := typedcontext.Get[*contextData](ctx)
+	return wg.getWg()
 }

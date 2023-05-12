@@ -9,15 +9,11 @@ Utility for main package
 ```go
 func main() { mainrun.Exec(realmain) }
 
-func realmain(ctx context.Context) error {
+func realmain(ctx context.Context) {
 
   // ...
 
-  return nil
 }
 ```
 
 The `ctx` passed to `realmain` will be cancelled if the program caught os signal for graceful shutdown.
-
-The returned `error` will be printed to `stderr` and the program will be exit
-with exit code 1
