@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 
+	"go.winto.dev/async"
 	"go.winto.dev/errors"
 	"go.winto.dev/typedcontext"
 )
@@ -98,7 +99,7 @@ func (e ExitDetail) ExitDetail() ExitDetail {
 type contextData struct {
 	sync.Mutex
 	sig os.Signal
-	wg  sync.WaitGroup
+	wg  async.WaitGroup
 }
 
 func (d *contextData) setSignal(sig os.Signal) {
@@ -118,7 +119,7 @@ func (d *contextData) getSignal() os.Signal {
 	return sig
 }
 
-func (d *contextData) getWg() *sync.WaitGroup {
+func (d *contextData) getWg() *async.WaitGroup {
 	if d == nil {
 		return nil
 	}
@@ -132,7 +133,7 @@ func Interrupted(ctx context.Context) os.Signal {
 }
 
 // Return WaitGroup that will be waited before Exec terminated
-func WaitGroup(ctx context.Context) *sync.WaitGroup {
+func WaitGroup(ctx context.Context) *async.WaitGroup {
 	wg, _ := typedcontext.Get[*contextData](ctx)
 	return wg.getWg()
 }
