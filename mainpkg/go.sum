@@ -2,5 +2,3 @@ go.winto.dev/async v1.1.0 h1:97zqUYajKM8RmjOPW4HCwGOvfXnTSQ00bsOgATwErNY=
 go.winto.dev/async v1.1.0/go.mod h1:v5TtAM8ZoQ04oopCyHM6R0Dw8rvk0qG7nx8g4aPrwao=
 go.winto.dev/errors v1.0.2 h1:RVu6nUppvtEr/M+Xi6D+MUUdxeMF7e08vhMxRPD8+ZI=
 go.winto.dev/errors v1.0.2/go.mod h1:pw50TK5O3qUp8R9C8ut456g1XH56HDhAml8FLG+66tk=
-go.winto.dev/typedcontext v1.0.1 h1:/HvCSoNFQoikBgQCmrsAdF4IuVJOmrFhJjRZEBbbKqY=
-go.winto.dev/typedcontext v1.0.1/go.mod h1:nYSpOg+UUA5bsDZgRcyppqeQ6LEyN5SR6ny6Mouc0LI=
