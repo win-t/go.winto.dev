@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 
@@ -22,7 +23,7 @@ var (
 	wg     async.WaitGroup
 )
 
-// Execute f, this function call os.Exit() when f returned or panic
+// Execute f, this function call os.Exit() after f returned or panic
 //
 // if the panic value throw by f implement [HasExitDetail], it will be used as exit detail.
 // otherwise it will print stack trace and exit with code 1.
@@ -35,23 +36,19 @@ func Exec(f func()) {
 		panic("cannot call mainpkg.Exec twice")
 	}
 
-	var exit ExitDetail
-	defer func() {
-		if len(exit.Message) > 0 {
-			if exit.Message[len(exit.Message)-1] == '\n' {
-				fmt.Fprint(os.Stderr, exit.Message)
-			} else {
-				fmt.Fprintln(os.Stderr, exit.Message)
-			}
-		}
-		os.Exit(exit.Code)
-	}()
+	var eCode int
+	defer func() { os.Exit(eCode) }()
 
-	defer wg.Wait()
+	var isRuntimeError bool
+	defer func() {
+		lock.Unlock()
+		if !isRuntimeError {
+			wg.Wait()
+		}
+	}()
 
 	var cancelCtx context.CancelFunc
 	ctx, cancelCtx = context.WithCancel(context.Background())
-	defer cancelCtx()
 
 	wg.Go(func() {
 		c := make(chan os.Signal, 1)
@@ -71,19 +68,47 @@ func Exec(f func()) {
 	called = true
 	lock.Unlock()
 	err := errors.Catch(func() error { f(); return nil })
+	lock.Lock()
+	cancelCtx()
 	if err == nil {
 		return
 	}
+	eCode = 1
 
-	exit = ExitDetail{
-		Code: 1,
-		Message: errors.FormatWithFilter(
-			err,
-			func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainpkg") },
-		),
-	}
+	var runtimeError runtime.Error
+	isRuntimeError = errors.As(err, &runtimeError)
+
+	var eMsg string
+	var hasExitDetail bool
+
 	if d := (HasExitDetail)(nil); errors.As(err, &d) {
-		errors.Catch(func() error { exit = d.ExitDetail(); return nil })
+		hasExitDetail = errors.Catch(func() error {
+			d := d.ExitDetail()
+			eCode = d.Code
+			eMsg = d.Message
+			return nil
+		}) == nil
+	}
+
+	if !hasExitDetail {
+		var hasErrMsg bool
+		if errorFormatter != nil {
+			hasErrMsg = errors.Catch(func() error { eMsg = errorFormatter(err); return nil }) == nil
+		}
+		if !hasErrMsg {
+			eMsg = errors.FormatWithFilter(
+				err,
+				func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainpkg") },
+			)
+		}
+	}
+
+	if len(eMsg) > 0 {
+		if eMsg[len(eMsg)-1] == '\n' {
+			fmt.Fprint(os.Stderr, eMsg)
+		} else {
+			fmt.Fprintln(os.Stderr, eMsg)
+		}
 	}
 }
 
@@ -120,4 +145,12 @@ func Interrupted() os.Signal {
 // Return WaitGroup that will be waited before Exec terminated
 func WaitGroup() *async.WaitGroup {
 	return &wg
+}
+
+var errorFormatter func(error) string
+
+func SetErrorFormatter(f func(error) string) {
+	lock.Lock()
+	errorFormatter = f
+	lock.Unlock()
 }
