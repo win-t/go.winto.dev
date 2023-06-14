@@ -3,6 +3,7 @@ package errors
 import (
 	stderrors "errors"
 	"fmt"
+	"syscall"
 )
 
 // see [stdlib errors.As]
@@ -49,7 +50,7 @@ func Join(err ...error) error {
 
 // will panic if err is not nil
 func Check(err error) {
-	if err != nil {
+	if err != nil && err != syscall.Errno(0) {
 		panic(traceIfNeeded(err, 1))
 	}
 }
@@ -62,4 +63,17 @@ func Expect(fact bool, message string) {
 		}
 		panic(newTracedErr(stderrors.New(message), 1))
 	}
+}
+
+type unwrapslice interface{ Unwrap() []error }
+
+// see https://pkg.go.dev/errors about following method
+//
+//	Unwrap() error
+//	Unwrap() []error
+func UnwrapSlice(err error) []error {
+	if real := (unwrapslice)(nil); stderrors.As(err, &real) {
+		return real.Unwrap()
+	}
+	return nil
 }

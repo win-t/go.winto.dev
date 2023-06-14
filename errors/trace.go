@@ -18,8 +18,6 @@ type tracedSliceErr struct{ tracedErr }
 
 func (e *tracedSliceErr) Unwrap() []error { return e.err.(unwrapslice).Unwrap() }
 
-type unwrapslice interface{ Unwrap() []error }
-
 func findTracedErr(err error) *tracedErr {
 	for err != nil {
 		if found, ok := err.(*tracedErr); ok {

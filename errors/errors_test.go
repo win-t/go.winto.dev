@@ -3,6 +3,7 @@ package errors_test
 import (
 	stderrors "errors"
 	"strings"
+	"syscall"
 	"testing"
 
 	"go.winto.dev/errors"
@@ -98,5 +99,18 @@ func TestJoinErrorf(t *testing.T) {
 
 	if errors.Trace(errors.Trace(c)) != c {
 		t.Fatalf("invalid Trace")
+	}
+}
+
+func TestCheckSyscallErrno(t *testing.T) {
+	errors.Check(syscall.Errno(0))
+}
+
+func TestUnwrapSlice(t *testing.T) {
+	a := errors.New("a")
+	b := errors.New("b")
+	c := errors.Join(a, b)
+	if len(errors.UnwrapSlice(c)) != 2 {
+		t.Fatalf("invalid UnwrapSlice")
 	}
 }
