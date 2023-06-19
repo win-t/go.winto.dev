@@ -1,4 +1,8 @@
 go.winto.dev/async v1.1.0 h1:97zqUYajKM8RmjOPW4HCwGOvfXnTSQ00bsOgATwErNY=
 go.winto.dev/async v1.1.0/go.mod h1:v5TtAM8ZoQ04oopCyHM6R0Dw8rvk0qG7nx8g4aPrwao=
+go.winto.dev/async v1.1.1 h1:qEPq/pcwvjCn1uIhIZmlSm29VGF+l6BKjI2zw65Xc3c=
+go.winto.dev/async v1.1.1/go.mod h1:HCE3/o+TbuHV694fjIhsvgdKKa2oe7W01TeoaLAZJ1I=
 go.winto.dev/errors v1.0.2 h1:RVu6nUppvtEr/M+Xi6D+MUUdxeMF7e08vhMxRPD8+ZI=
 go.winto.dev/errors v1.0.2/go.mod h1:pw50TK5O3qUp8R9C8ut456g1XH56HDhAml8FLG+66tk=
+go.winto.dev/errors v1.1.1 h1:dEjqtwe61zNmzDuFcEt4REIqv1vlT0aW5I+5PUMu/O0=
+go.winto.dev/errors v1.1.1/go.mod h1:pw50TK5O3qUp8R9C8ut456g1XH56HDhAml8FLG+66tk=
