@@ -1,4 +1,4 @@
-module checkgoogleadc
+module go.winto.dev/checkgoogleadc
 
 go 1.20
 
