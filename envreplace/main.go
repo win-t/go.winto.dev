@@ -2,22 +2,37 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
 )
 
+var prefixFunc = map[string]func(string) string{
+	"__ENV_":     noopPrefix,
+	"__ENVXML_":  xmlPrefix,
+	"__ENVJSON_": jsonPrefix,
+}
+
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <filename>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s {filename}\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "       if filename is -, it will use stdin and stdout\n")
 		os.Exit(1)
 	}
 
-	prefix := "__ENV_"
 	filename := os.Args[1]
 
-	data, err := os.ReadFile(filename)
+	var data []byte
+	var err error
+	if filename == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(filename)
+	}
 	check(err)
 
 	var keys []string
@@ -30,13 +45,43 @@ func main() {
 	// __ENV_ABCD will not be replaced by twoD
 	sort.Slice(keys, func(i, j int) bool { return len(keys[i]) > len(keys[j]) })
 
+	var prefixes []string
+	for p := range prefixFunc {
+		prefixes = append(prefixes, p)
+	}
+	sort.Slice(prefixes, func(i, j int) bool { return len(prefixes[i]) > len(prefixes[j]) })
+
 	for _, key := range keys {
 		val := os.Getenv(key)
-		data = bytes.ReplaceAll(data, []byte(prefix+key), []byte(val))
+		for _, prefix := range prefixes {
+			data = bytes.ReplaceAll(data, []byte(prefix+key), []byte(prefixFunc[prefix](val)))
+		}
 	}
 
-	err = os.WriteFile(filename, data, 0o644)
+	if filename == "-" {
+		io.Copy(os.Stdout, bytes.NewReader(data))
+	} else {
+		err = os.WriteFile(filename, data, 0o644)
+	}
 	check(err)
+}
+
+func noopPrefix(t string) string {
+	return t
+}
+
+func xmlPrefix(t string) string {
+	var buf bytes.Buffer
+	err := xml.EscapeText(&buf, []byte(t))
+	check(err)
+	return buf.String()
+}
+
+func jsonPrefix(t string) string {
+	var buf bytes.Buffer
+	err := json.NewEncoder(&buf).Encode(t)
+	check(err)
+	return buf.String()
 }
 
 func check(err error) {
