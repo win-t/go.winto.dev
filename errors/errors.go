@@ -77,3 +77,8 @@ func UnwrapSlice(err error) []error {
 	}
 	return nil
 }
+
+// see [stdlib errors.ErrUnsupported]
+//
+// [stdlib errors.ErrUnsupported]: https://pkg.go.dev/errors#pkg-variables
+var ErrUnsupported = stderrors.ErrUnsupported
