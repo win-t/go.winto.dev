@@ -3,10 +3,9 @@ package typedcontext
 
 import (
 	"context"
-	"reflect"
 )
 
-type key[T any] struct{}
+type key[T any] struct{ _ [0]*T }
 
 // Create new context that have singleton value of the val's type.
 func New[T any](ctx context.Context, val T) context.Context {
@@ -21,14 +20,5 @@ func Get[T any](ctx context.Context) (T, bool) {
 
 // like [Get] but panic if the value is not in the context.
 func MustGet[T any](ctx context.Context) T {
-	v, ok := ctx.Value(key[T]{}).(T)
-	if !ok {
-		panicWrongType[T]()
-	}
-	return v
-}
-
-// panicWrongType is separate function to make MustGet got inlined in the caller
-func panicWrongType[T any]() {
-	panic("context doesn't have the singleton value of type " + reflect.TypeOf((*T)(nil)).Elem().String())
+	return ctx.Value(key[T]{}).(T)
 }
