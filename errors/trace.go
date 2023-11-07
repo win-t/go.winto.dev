@@ -18,13 +18,13 @@ type tracedSliceErr struct{ tracedErr }
 
 func (e *tracedSliceErr) Unwrap() []error { return e.err.(unwrapslice).Unwrap() }
 
-func findTracedErr(err error) *tracedErr {
+func findTracedErr(err error) error {
 	for err != nil {
-		if found, ok := err.(*tracedErr); ok {
-			return found
+		if _, ok := err.(*tracedErr); ok {
+			return err
 		}
-		if found, ok := err.(*tracedSliceErr); ok {
-			return &found.tracedErr
+		if _, ok := err.(*tracedSliceErr); ok {
+			return err
 		}
 		err = stderrors.Unwrap(err)
 	}
@@ -75,7 +75,14 @@ func Trace2[A any](a A, err error) (A, error) {
 // return nil if err doesn't have stack trace
 func StackTrace(err error) []Location {
 	if found := findTracedErr(err); found != nil {
-		return found.locs
+		switch found := found.(type) {
+		case *tracedErr:
+			return found.locs
+		case *tracedSliceErr:
+			return found.tracedErr.locs
+		default:
+			return nil
+		}
 	}
 	return nil
 }
