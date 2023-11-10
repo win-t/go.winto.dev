@@ -19,7 +19,12 @@ func Catch(f func() error) (err error) {
 		}
 
 		if findTracedErr(recErr) != nil {
-			err = recErr
+			if _, ok := recErr.(*tracedSliceErr); ok {
+				// we need to have stack trace here
+				err = Errorf("panic on multi err: %w", recErr)
+			} else {
+				err = recErr
+			}
 			return
 		}
 

@@ -75,3 +75,17 @@ func TestCatchMultipleReturn(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestCatchMultiErr(t *testing.T) {
+	err := errors.Catch(func() error {
+		a := errors.New("a")
+		b := errors.New("b")
+		funcAA(func() {
+			panic(errors.Join(a, b))
+		})
+		return nil
+	})
+	if !haveTrace(errors.StackTrace(err), "funcAA") {
+		t.Errorf("errors.Catch trace should contains funcAA")
+	}
+}

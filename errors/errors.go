@@ -49,6 +49,8 @@ func Join(err ...error) error {
 }
 
 // will panic if err is not nil
+//
+// usage of this function is discouraged
 func Check(err error) {
 	if err != nil && err != syscall.Errno(0) {
 		panic(traceIfNeeded(err, 1))
@@ -56,6 +58,8 @@ func Check(err error) {
 }
 
 // Expect will panic with message if fact is false
+//
+// usage of this function is discouraged
 func Expect(fact bool, message string) {
 	if !fact {
 		if message == "" {
