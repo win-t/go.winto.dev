@@ -18,17 +18,16 @@ func Catch(f func() error) (err error) {
 			return
 		}
 
-		if findTracedErr(recErr) != nil {
-			if _, ok := recErr.(*tracedSliceErr); ok {
-				// we need to have stack trace here
-				err = Errorf("panic on multi err: %w", recErr)
-			} else {
-				err = recErr
-			}
+		if findTracedErr(recErr) == nil {
+			err = newTracedErr(recErr, 1)
 			return
 		}
 
-		err = newTracedErr(recErr, 1)
+		err = recErr
+		if _, ok := recErr.(*tracedSliceErr); ok {
+			// we need to have stack trace here
+			err = newTracedErr(fmt.Errorf("%w", recErr), 1)
+		}
 	}()
 
 	return f()
