@@ -72,8 +72,11 @@ func Trace2[A any](a A, err error) (A, error) {
 //
 // return nil if err doesn't have stack trace
 func StackTrace(err error) []Location {
-	if t, ok := findTracedErr(err).(*tracedErr); ok {
-		return t.locs
+	switch err := err.(type) {
+	case *tracedErr:
+		return err.locs
+	case *tracedSliceErr:
+		return err.tracedErr.locs
 	}
 	return nil
 }

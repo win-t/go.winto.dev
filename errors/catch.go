@@ -24,9 +24,9 @@ func Catch(f func() error) (err error) {
 		}
 
 		err = recErr
-		if _, ok := recErr.(*tracedSliceErr); ok {
+		if tse, ok := recErr.(*tracedSliceErr); ok {
 			// we need to have stack trace here
-			err = newTracedErr(fmt.Errorf("%w", recErr), 1)
+			err = &tracedSliceErr{tracedErr{tse.tracedErr.err, getLocs(1)}}
 		}
 	}()
 
