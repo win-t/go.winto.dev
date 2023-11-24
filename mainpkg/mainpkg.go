@@ -36,8 +36,8 @@ func Exec(f func()) {
 		panic("cannot call mainpkg.Exec twice")
 	}
 
-	var eCode int
-	defer func() { os.Exit(eCode) }()
+	var eDetail ExitDetail
+	defer func() { os.Exit(eDetail.Code) }()
 
 	var isRuntimeError bool
 	defer func() {
@@ -73,41 +73,24 @@ func Exec(f func()) {
 	if err == nil {
 		return
 	}
-	eCode = 1
+	eDetail.Code = 1
 
 	var runtimeError runtime.Error
 	isRuntimeError = errors.As(err, &runtimeError)
 
-	var eMsg string
-	var hasExitDetail bool
-
 	if d := (HasExitDetail)(nil); errors.As(err, &d) {
-		hasExitDetail = errors.Catch(func() error {
-			d := d.ExitDetail()
-			eCode = d.Code
-			eMsg = d.Message
-			return nil
-		}) == nil
+		eDetail = d.ExitDetail()
 	}
 
-	if !hasExitDetail {
-		var hasErrMsg bool
-		if errorFormatter != nil {
-			hasErrMsg = errors.Catch(func() error { eMsg = errorFormatter(err); return nil }) == nil
-		}
-		if !hasErrMsg {
-			eMsg = errors.FormatWithFilter(
-				err,
-				func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainpkg") },
-			)
-		}
+	if eDetail.Message == "" {
+		eDetail.Message = errorFormatter(err)
 	}
 
-	if len(eMsg) > 0 {
-		if eMsg[len(eMsg)-1] == '\n' {
-			fmt.Fprint(os.Stderr, eMsg)
+	if len(eDetail.Message) > 0 {
+		if eDetail.Message[len(eDetail.Message)-1] == '\n' {
+			fmt.Fprint(os.Stderr, eDetail.Message)
 		} else {
-			fmt.Fprintln(os.Stderr, eMsg)
+			fmt.Fprintln(os.Stderr, eDetail.Message)
 		}
 	}
 }
@@ -147,7 +130,12 @@ func WaitGroup() *async.WaitGroup {
 	return &wg
 }
 
-var errorFormatter func(error) string
+var errorFormatter = func(err error) string {
+	return errors.FormatWithFilter(
+		err,
+		func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainpkg") },
+	)
+}
 
 func SetErrorFormatter(f func(error) string) {
 	lock.Lock()
