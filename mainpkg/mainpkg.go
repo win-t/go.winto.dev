@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime"
 	"sync"
 	"syscall"
 
@@ -37,14 +36,13 @@ func Exec(f func()) {
 	}
 
 	var eDetail ExitDetail
-	defer func() { os.Exit(eDetail.Code) }()
-
-	var isRuntimeError bool
+	var errHappen bool
 	defer func() {
 		lock.Unlock()
-		if !isRuntimeError {
+		if !errHappen {
 			wg.Wait()
 		}
+		os.Exit(eDetail.Code)
 	}()
 
 	var cancelCtx context.CancelFunc
@@ -68,15 +66,13 @@ func Exec(f func()) {
 	called = true
 	lock.Unlock()
 	err := errors.Catch(func() error { f(); return nil })
-	lock.Lock()
 	cancelCtx()
+	lock.Lock()
 	if err == nil {
 		return
 	}
+	errHappen = true
 	eDetail.Code = 1
-
-	var runtimeError runtime.Error
-	isRuntimeError = errors.As(err, &runtimeError)
 
 	if d := (HasExitDetail)(nil); errors.As(err, &d) {
 		eDetail = d.ExitDetail()
@@ -125,7 +121,7 @@ func Interrupted() os.Signal {
 	return ret
 }
 
-// Return WaitGroup that will be waited before Exec terminated
+// Return WaitGroup that will be waited after f passed to [Exec] return normally
 func WaitGroup() *async.WaitGroup {
 	return &wg
 }
