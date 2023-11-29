@@ -41,6 +41,7 @@ func newTracedErr(err error, skip int) error {
 	if _, ok := err.(unwrapslice); ok {
 		// we only care about trace locs of individual error
 		// so skipping locs for error slice
+		// keep in sync with [Catch]
 		return &tracedSliceErr{tracedErr{err, nil}}
 	}
 
