@@ -1,8 +1,6 @@
 package errors
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // run f, if f panic or returned, that value will be returned by this function
 func Catch(f func() error) (err error) {
@@ -18,17 +16,13 @@ func Catch(f func() error) (err error) {
 			return
 		}
 
-		if findTracedErr(recErr) == nil {
-			err = newTracedErr(recErr, 1)
+		if len(StackTrace(recErr)) > 0 {
+			err = recErr
 			return
 		}
 
-		err = recErr
-		if tse, ok := recErr.(*tracedSliceErr); ok {
-			// we need to have stack trace here
-			// keep in sync with [newTracedErr]
-			err = &tracedSliceErr{tracedErr{tse.tracedErr.err, getLocs(1)}}
-		}
+		// must have stack trace
+		err = Errorf("panic: %w", recErr)
 	}()
 
 	return f()

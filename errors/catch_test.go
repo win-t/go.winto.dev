@@ -89,3 +89,15 @@ func TestCatchMultiErr(t *testing.T) {
 		t.Errorf("errors.Catch trace should contains funcAA")
 	}
 }
+
+func TestCatchDeepTracedErrro(t *testing.T) {
+	err := errors.Catch(func() error {
+		funcAA(func() {
+			panic(fmt.Errorf("test wrapper: %w", errors.New("test err")))
+		})
+		return nil
+	})
+	if !haveTrace(errors.StackTrace(err), "funcAA") {
+		t.FailNow()
+	}
+}

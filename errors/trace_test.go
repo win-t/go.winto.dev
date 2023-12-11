@@ -115,3 +115,13 @@ func TestTraceMultipleReturn(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestDeepTracedErrro(t *testing.T) {
+	var err error
+	funcAA(func() {
+		err = fmt.Errorf("test wrapper: %w", errors.New("test err"))
+	})
+	if !haveTrace(errors.StackTrace(err), "funcAA") {
+		t.FailNow()
+	}
+}
