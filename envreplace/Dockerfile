@@ -1,7 +1,8 @@
 FROM golang:alpine AS builder
 WORKDIR /builder
 COPY . .
-RUN go build -o envreplace .
+RUN CGO_ENABLED=0 go build -o envreplace .
 
-FROM alpine
+FROM scratch
 COPY --from=builder /builder/envreplace /envreplace
+ENTRYPOINT ["/envreplace", "-"]

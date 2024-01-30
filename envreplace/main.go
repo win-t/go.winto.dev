@@ -12,9 +12,10 @@ import (
 )
 
 var prefixFunc = map[string]func(string) string{
-	"__ENV_":     noopPrefix,
-	"__ENVXML_":  xmlPrefix,
-	"__ENVJSON_": jsonPrefix,
+	"__ENV_":      noopPrefix,
+	"__ENVXML_":   xmlPrefix,
+	"__ENVJSON_":  jsonPrefix,
+	"__ENVJSONC_": jsonContentPrefix,
 }
 
 func main() {
@@ -78,10 +79,14 @@ func xmlPrefix(t string) string {
 }
 
 func jsonPrefix(t string) string {
-	var buf bytes.Buffer
-	err := json.NewEncoder(&buf).Encode(t)
+	data, err := json.Marshal(t)
 	check(err)
-	return buf.String()
+	return string(data)
+}
+
+func jsonContentPrefix(t string) string {
+	r := jsonPrefix(t)
+	return r[1 : len(r)-2]
 }
 
 func check(err error) {
