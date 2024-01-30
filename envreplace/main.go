@@ -79,14 +79,17 @@ func xmlPrefix(t string) string {
 }
 
 func jsonPrefix(t string) string {
-	data, err := json.Marshal(t)
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	err := enc.Encode(t)
 	check(err)
-	return string(data)
+	return strings.TrimSuffix(buf.String(), "\n")
 }
 
 func jsonContentPrefix(t string) string {
 	r := jsonPrefix(t)
-	return r[1 : len(r)-2]
+	return r[1 : len(r)-1]
 }
 
 func check(err error) {
