@@ -98,6 +98,7 @@ func TestListEnvName(t *testing.T) {
 		IntSlice   []int
 		Dur        time.Duration
 		Loc        *time.Location
+		Skip       string `env:""`
 	}
 	names := envparser.ListEnvName(&config)
 	if !reflect.DeepEqual(names, []string{
@@ -110,5 +111,34 @@ func TestListEnvName(t *testing.T) {
 		"Loc",
 	}) {
 		t.Fatalf("invalid ListEnvName")
+	}
+}
+
+func TestPrefix(t *testing.T) {
+	fakeEnv := map[string]string{
+		"PREFIX_A": "42",
+		"PREFIX_B": "hello world",
+	}
+	for k, v := range fakeEnv {
+		os.Setenv(k, v)
+	}
+	defer func() {
+		for k := range fakeEnv {
+			os.Unsetenv(k)
+		}
+	}()
+
+	var config struct {
+		A int
+		B string
+	}
+
+	err := envparser.UnmarshalWithPrefix(&config, "PREFIX_")
+	if err != nil {
+		t.Fatalf("%s", err.Error())
+	}
+
+	if config.A != 42 || config.B != "hello world" {
+		t.FailNow()
 	}
 }

@@ -23,10 +23,16 @@ var (
 //
 // "env" tag in each field in target struct will be fetched from environment variable.
 // If "env" tag is not found, field name is used.
+// If "env" tag is empty string, the field is skipped.
 //
 // if the field implement [Unmarshaler] interface, it will be used.
 func Unmarshal(target any) error {
-	targetVal := getValue(target)
+	return UnmarshalWithPrefix(target, "")
+}
+
+// Like [Unmarshal] but we can specify the prefix key.
+func UnmarshalWithPrefix(target any, prefix string) error {
+	targetVal := valueOfPointerToStruct(target)
 
 	var parseError ParseError
 
@@ -36,7 +42,7 @@ func Unmarshal(target any) error {
 			continue
 		}
 
-		val, ok := os.LookupEnv(key)
+		val, ok := os.LookupEnv(prefix + key)
 		if !ok {
 			continue
 		}
@@ -111,7 +117,7 @@ func lookupEnvName(f reflect.StructField) string {
 	return f.Name
 }
 
-func getValue(target any) reflect.Value {
+func valueOfPointerToStruct(target any) reflect.Value {
 	var targetVal reflect.Value
 	if v := reflect.ValueOf(target); v.Kind() == reflect.Ptr {
 		targetVal = v.Elem()
@@ -127,7 +133,7 @@ func getValue(target any) reflect.Value {
 //
 // target must be non-nil pointer to struct.
 func ListEnvName(target any) []string {
-	targetVal := getValue(target)
+	targetVal := valueOfPointerToStruct(target)
 
 	var ret []string
 	for i, t := 0, targetVal.Type(); i < t.NumField(); i++ {

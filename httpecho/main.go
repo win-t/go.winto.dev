@@ -16,38 +16,46 @@ func main() {
 		port = "8080"
 	}
 
-	runExtraUDPEcho()
+	id := os.Getenv("ID")
+
+	runExtraUDPEcho(id)
 
 	_, err := strconv.Atoi(port)
 	check(err)
 
-	err = http.ListenAndServe(":"+port, http.HandlerFunc(handler))
+	err = http.ListenAndServe(":"+port, handler(id))
 	check(err)
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("got http request: %s > %s %s\n", r.RemoteAddr, r.Method, r.URL.EscapedPath())
+func handler(id string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("got http request: %s > %s %s\n", r.RemoteAddr, r.Method, r.URL.EscapedPath())
 
-	cty, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if strings.HasPrefix(cty, "text/") || r.ContentLength == 0 {
-		w.Header().Add("Content-Type", "text/plain")
-	} else {
-		w.Header().Add("Content-Type", "application/octet-stream")
+		if id != "" {
+			w.Header().Set("X-Id", id)
+		}
+
+		cty, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if strings.HasPrefix(cty, "text/") || r.ContentLength == 0 {
+			w.Header().Add("Content-Type", "text/plain")
+		} else {
+			w.Header().Add("Content-Type", "application/octet-stream")
+		}
+
+		localAddr, _ := r.Context().Value(http.LocalAddrContextKey).(net.Addr)
+		if localAddr != nil {
+			w.Header().Add("X-Local-Addr", localAddr.String())
+		}
+
+		if r.RemoteAddr != "" {
+			w.Header().Add("X-Remote-Addr", r.RemoteAddr)
+		}
+
+		r.Write(w)
 	}
-
-	localAddr, _ := r.Context().Value(http.LocalAddrContextKey).(net.Addr)
-	if localAddr != nil {
-		w.Header().Add("X-Local-Addr", localAddr.String())
-	}
-
-	if r.RemoteAddr != "" {
-		w.Header().Add("X-Remote-Addr", r.RemoteAddr)
-	}
-
-	r.Write(w)
 }
 
-func runExtraUDPEcho() {
+func runExtraUDPEcho(id string) {
 	port := os.Getenv("UDPPORT")
 	if port == "" {
 		return
@@ -76,6 +84,10 @@ func runExtraUDPEcho() {
 			dataIn := readBuf[:n]
 			dataOut := writeBuf[:0]
 
+			if id != "" {
+				dataOut = append(dataOut, id...)
+				dataOut = append(dataOut, ": "...)
+			}
 			dataOut = append(dataOut, peer.String()...)
 			dataOut = append(dataOut, " > "...)
 			dataOut = append(dataOut, dataIn...)
