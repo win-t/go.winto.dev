@@ -118,9 +118,7 @@ func addAsHandler(ret *[]middleware, a any) bool {
 	var req_handlerfunc func(*http.Request) http.HandlerFunc
 	if setIfConvertible(a, &req_handlerfunc) {
 		*ret = append(*ret, func(http.HandlerFunc) http.HandlerFunc {
-			return func(w http.ResponseWriter, r *http.Request) {
-				req_handlerfunc(r)(w, r)
-			}
+			return Of(req_handlerfunc)
 		})
 		return true
 	}
