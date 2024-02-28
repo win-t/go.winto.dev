@@ -38,7 +38,7 @@ func main() {
 
 	targetFullPath := filepath.Join(cacheDir, "gorundir", strings.Join(nameParts, "-"))
 
-	goBuild := exec.Command("go", "build", "-o", targetFullPath, "-C", targetDir, ".")
+	goBuild := exec.Command("go", "build", "-C", targetDir, "-o", targetFullPath, ".")
 	goBuild.Stdin, goBuild.Stdout, goBuild.Stderr = nil, os.Stdout, os.Stderr
 	err = goBuild.Run()
 	if err != nil {
