@@ -131,7 +131,7 @@ func (s svc) startMainLoop() {
 
 		startedOn := time.Now()
 		printf(
-			"[%s] the process is started\n",
+			"[%s] the process is starting\n",
 			startedOn.Format(time.RFC3339),
 		)
 

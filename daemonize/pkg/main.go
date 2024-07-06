@@ -3,6 +3,7 @@ package pkg
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 )
 
@@ -21,7 +22,9 @@ func Main() {
 		printUsageAndExit()
 	}
 
-	svc := svc(os.Args[1])
+	root, err := filepath.Abs(os.Args[1])
+	check(err)
+	svc := svc(root)
 	if svc.continuationOfDoubleFork() {
 		svc.startMainLoop()
 		return

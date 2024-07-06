@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -67,14 +68,6 @@ type srcState struct {
 }
 
 func (src *srcState) reopenAndForward(ctx context.Context, path string, notifyCh notifyCh) bool {
-	// file must be closed after wg.Wait() to avoid accessing closed file in other goroutine
-	var file *os.File
-	defer func() {
-		if file != nil {
-			file.Close()
-		}
-	}()
-
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
@@ -85,7 +78,7 @@ func (src *srcState) reopenAndForward(ctx context.Context, path string, notifyCh
 	err := src.file.SetReadDeadline(time.Time{})
 	check(err)
 
-	file, err = os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY|syscall.O_NONBLOCK, 0o600)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY|syscall.O_NONBLOCK, 0o600)
 	if err != nil {
 		printf(
 			"[%s] WARN: failed to open '%s' (%s), log will be discarded, trying to reopen in 15 seconds\n",
@@ -103,6 +96,15 @@ func (src *srcState) reopenAndForward(ctx context.Context, path string, notifyCh
 			}
 		}()
 	}
+	var fileClosed atomic.Bool
+	closeFile := func() {
+		if fileClosed.CompareAndSwap(false, true) {
+			if file != nil {
+				file.Close()
+			}
+		}
+	}
+	defer closeFile()
 
 	wg.Add(1)
 	go func() {
@@ -113,10 +115,7 @@ func (src *srcState) reopenAndForward(ctx context.Context, path string, notifyCh
 		}
 		err := src.file.SetReadDeadline(time.Unix(0, 0))
 		check(err)
-		if file != nil {
-			err = file.SetWriteDeadline(time.Unix(0, 0))
-			check(err)
-		}
+		closeFile()
 	}()
 
 	for {
@@ -145,7 +144,7 @@ func (src *srcState) reopenAndForward(ctx context.Context, path string, notifyCh
 			}
 			src.chunk = src.chunk[n:]
 			if err != nil {
-				if !errors.Is(err, os.ErrDeadlineExceeded) {
+				if !fileClosed.Load() {
 					printf(
 						"[%s] WARN: failed to write to '%s' (%s), force reopen\n",
 						time.Now().Format(time.RFC3339),
