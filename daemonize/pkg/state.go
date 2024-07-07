@@ -71,7 +71,7 @@ func (s svc) getSupervisorPid() int {
 }
 
 func readEnvstateIDFromPid(pid int) (string, error) {
-	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/environ", pid))
+	data, err := readPidEnviron(pid)
 	if err != nil {
 		return "", err
 	}

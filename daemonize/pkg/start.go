@@ -48,7 +48,7 @@ func (s svc) doDoubleFork() {
 		rInfo, wInfo, err := os.Pipe()
 		check(err)
 
-		p, err := os.StartProcess("/proc/self/exe", os.Args, &os.ProcAttr{
+		p, err := forkExec(&os.ProcAttr{
 			Sys:   &syscall.SysProcAttr{Setsid: true},
 			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr, wInfo},
 		})
@@ -75,7 +75,7 @@ func (s svc) doDoubleFork() {
 		stderr, err := os.OpenFile(s.supervisorStderr(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 		check(err)
 
-		_, err = os.StartProcess("/proc/self/exe", os.Args, &os.ProcAttr{
+		_, err = forkExec(&os.ProcAttr{
 			Sys:   &syscall.SysProcAttr{Setpgid: true},
 			Files: []*os.File{stdin, stdout, stderr, os.NewFile(3, "info")},
 		})
