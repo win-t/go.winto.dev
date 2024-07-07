@@ -1,7 +1,6 @@
 package pkg
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -25,6 +24,7 @@ func Main() {
 	root, err := filepath.Abs(os.Args[1])
 	check(err)
 	svc := svc(root)
+
 	if svc.continuationOfDoubleFork() {
 		svc.startMainLoop()
 		return
@@ -65,11 +65,11 @@ func (s svc) cmdStart() {
 
 func (s svc) cmdStatus() {
 	if s.getSupervisorPid() == 0 {
-		fmt.Println("stopped")
+		printf("stopped\n")
 		return
 	}
 
-	fmt.Println("running")
+	printf("running\n")
 }
 
 func (s svc) cmdStop() {

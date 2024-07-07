@@ -13,7 +13,7 @@ var stdoutMutex sync.Mutex
 
 func printf(f string, args ...any) {
 	stdoutMutex.Lock()
-	fmt.Printf(f, args...)
+	_, _ = fmt.Printf(f, args...)
 	stdoutMutex.Unlock()
 }
 
@@ -24,8 +24,7 @@ func printUsageAndExit() {
 	}
 	sort.Strings(cmds)
 
-	fmt.Fprintf(os.Stderr, "error: invalid args\n")
-	fmt.Fprintf(os.Stderr, "usage: %s <service path> (%s)\n", os.Args[0], strings.Join(cmds, "|"))
+	_, _ = fmt.Fprintf(os.Stderr, "usage: %s <service path> (%s)\n", os.Args[0], strings.Join(cmds, "|"))
 
 	os.Exit(1)
 }

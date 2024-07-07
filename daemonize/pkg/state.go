@@ -54,7 +54,8 @@ func (s svc) getSupervisorPid() int {
 
 	var pid int
 	var stateID string
-	fmt.Sscanf(string(data), "%d %s", &pid, &stateID)
+	_, err = fmt.Sscanf(string(data), "%d %s", &pid, &stateID)
+	check(err)
 
 	liveStateId, err := readEnvstateIDFromPid(pid)
 	if err != nil && errors.Is(err, fs.ErrNotExist) {

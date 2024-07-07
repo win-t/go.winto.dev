@@ -26,7 +26,7 @@ func (s svc) doubleForkIsNeeded() bool {
 	if s.getSupervisorPid() != 0 {
 		return false
 	}
-	os.RemoveAll(s.statePath())
+	_ = os.RemoveAll(s.statePath())
 	err = os.Mkdir(s.statePath(), 0o700)
 	check(err)
 	return true
@@ -53,17 +53,17 @@ func (s svc) doDoubleFork() {
 			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr, wInfo},
 		})
 		check(err)
-		p.Wait()
+		_, _ = p.Wait()
 
 		var buf [8]byte
-		rInfo.SetReadDeadline(time.Now().Add(5 * time.Second))
+		_ = rInfo.SetReadDeadline(time.Now().Add(5 * time.Second))
 		n, _ := rInfo.Read(buf[:])
 		if slices.Compare(buf[:n], []byte("ok")) != 0 {
 			stdout, _ := os.ReadFile(s.supervisorStdout())
-			os.Stdout.Write(stdout)
+			_, _ = os.Stdout.Write(stdout)
 			stderr, _ := os.ReadFile(s.supervisorStderr())
-			os.Stderr.Write(stderr)
-			fmt.Fprintln(os.Stderr, "Failed to start daemonize process")
+			_, _ = os.Stderr.Write(stderr)
+			_, _ = fmt.Fprintln(os.Stderr, "Failed to start daemonize process")
 			os.Exit(1)
 		}
 
@@ -100,11 +100,20 @@ func (s svc) doDoubleFork() {
 }
 
 func (s svc) startMainLoop() {
-	runtime.GOMAXPROCS(2)
+	// set GOMAXPROCS to 3 for:
+	// - mainloop
+	// - stdout forwarder
+	// - stderr forwarder
+	runtime.GOMAXPROCS(3)
 
+	printf(
+		"[%s] daemonize started for service dir '%s'\n",
+		time.Now().Format(time.RFC3339),
+		string(s),
+	)
 	defer func() {
 		printf(
-			"[%s] the daemonize exited\n",
+			"[%s] daemonize exited\n",
 			time.Now().Format(time.RFC3339),
 		)
 	}()
@@ -116,7 +125,7 @@ func (s svc) startMainLoop() {
 	defer cancelCtx()
 
 	stdout, stderr := s.setupForwarder(ctx, &wg)
-	defer func() { stdout.Close(); stderr.Close() }()
+	defer func() { _ = stdout.Close(); _ = stderr.Close() }()
 
 	sigCh := make(chan os.Signal, 2)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGUSR1)
@@ -126,15 +135,15 @@ func (s svc) startMainLoop() {
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, stdout, stderr
 
+		printf(
+			"[%s] starting the process\n",
+			time.Now().Format(time.RFC3339),
+		)
+
 		waitErrCh := make(chan error, 1)
 		go func() { waitErrCh <- cmd.Run() }()
 
-		startedOn := time.Now()
-		printf(
-			"[%s] the process is starting\n",
-			startedOn.Format(time.RFC3339),
-		)
-
+		beforeWait := time.Now()
 		select {
 		case err := <-waitErrCh:
 			if err == nil {
@@ -145,34 +154,33 @@ func (s svc) startMainLoop() {
 				return
 			}
 
-			sleepDur := max(100*time.Millisecond, (15*time.Second)-time.Since(startedOn))
-			if realErr := (*os.PathError)(nil); errors.As(err, &realErr) {
+			sleepDur := max(100*time.Millisecond, (15*time.Second)-time.Since(beforeWait))
+			if realErr := (*exec.ExitError)(nil); errors.As(err, &realErr) {
+				status := realErr.Sys().(syscall.WaitStatus)
+				if status.Signaled() {
+					printf(
+						"[%s] the process killed by signal %d (%s), restarting in %s\n",
+						time.Now().Format(time.RFC3339),
+						int(status.Signal()),
+						status.Signal().String(),
+						sleepDur.Round(time.Millisecond).String(),
+					)
+				} else {
+					printf(
+						"[%s] the process exited with status code %d, restarting in %s\n",
+						time.Now().Format(time.RFC3339),
+						status.ExitStatus(),
+						sleepDur.Round(time.Millisecond).String(),
+					)
+				}
+			} else {
 				printf(
 					"[%s] failed to execute '%s' (%s), restarting in %s\n",
 					time.Now().Format(time.RFC3339),
 					s.runPath(),
-					realErr.Err.Error(),
-					sleepDur.Round(time.Millisecond),
+					err.Error(),
+					sleepDur.Round(time.Millisecond).String(),
 				)
-			} else if realErr := (*exec.ExitError)(nil); errors.As(err, &realErr) {
-				wait := realErr.Sys().(syscall.WaitStatus)
-				if wait.Exited() {
-					printf(
-						"[%s] the process exited with status code %d, restarting in %s\n",
-						time.Now().Format(time.RFC3339),
-						wait.ExitStatus(),
-						sleepDur.Round(time.Millisecond),
-					)
-				} else {
-					printf(
-						"[%s] the process killed by signal '%s', restarting in %s\n",
-						time.Now().Format(time.RFC3339),
-						wait.Signal(),
-						sleepDur.Round(time.Millisecond),
-					)
-				}
-			} else {
-				panic(err)
 			}
 
 			select {
@@ -181,16 +189,14 @@ func (s svc) startMainLoop() {
 				switch sig {
 				case syscall.SIGTERM:
 					printf(
-						"[%s] got signal '%s', while in restart back-off\n",
+						"[%s] exit is requested while in restart back-off\n",
 						time.Now().Format(time.RFC3339),
-						sig.String(),
 					)
 					return
 				case syscall.SIGUSR1:
 					printf(
-						"[%s] got signal '%s', while in restart back-off, restart immediately\n",
+						"[%s] restart is requested while in restart back-off\n",
 						time.Now().Format(time.RFC3339),
-						sig.String(),
 					)
 				default:
 					panic("should not happen")
@@ -201,16 +207,13 @@ func (s svc) startMainLoop() {
 			switch sig {
 			case syscall.SIGTERM:
 				printf(
-					"[%s] got signal '%s', forward it to the process and wait for 15 seconds\n",
+					"[%s] exit is requested, send termination signal to the process\n",
 					time.Now().Format(time.RFC3339),
-					sig.String(),
 				)
 			case syscall.SIGUSR1:
 				printf(
-					"[%s] got signal '%s' to restart the process, send signal '%s' and wait for 15 seconds\n",
+					"[%s] restart is requested, send termination signal to the process\n",
 					time.Now().Format(time.RFC3339),
-					sig.String(),
-					syscall.SIGTERM.String(),
 				)
 			default:
 				panic("should not happen")
@@ -227,7 +230,7 @@ func (s svc) startMainLoop() {
 				)
 			case <-time.After(15 * time.Second):
 				printf(
-					"[%s] process is not exited within 15 seconds, kill it\n",
+					"[%s] the process is not exited within 15 seconds, force kill it\n",
 					time.Now().Format(time.RFC3339),
 				)
 				err = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
