@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"runtime"
 	"slices"
 	"sync"
 	"syscall"
@@ -100,12 +99,6 @@ func (s svc) doDoubleFork() {
 }
 
 func (s svc) startMainLoop() {
-	// set GOMAXPROCS to 3 for:
-	// - mainloop
-	// - stdout forwarder
-	// - stderr forwarder
-	runtime.GOMAXPROCS(3)
-
 	printf(
 		"[%s] daemonize started for service dir '%s'\n",
 		time.Now().Format(time.RFC3339),
@@ -233,8 +226,7 @@ func (s svc) startMainLoop() {
 					"[%s] the process is not exited within 15 seconds, force kill it\n",
 					time.Now().Format(time.RFC3339),
 				)
-				err = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-				check(err)
+				_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 				<-waitErrCh
 			}
 

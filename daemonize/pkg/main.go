@@ -3,6 +3,7 @@ package pkg
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"syscall"
 )
 
@@ -17,6 +18,8 @@ var cmdFn = map[string]func(svc){
 }
 
 func Main() {
+	runtime.GOMAXPROCS(1)
+
 	if len(os.Args) != 3 {
 		printUsageAndExit()
 	}

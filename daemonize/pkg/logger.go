@@ -89,8 +89,9 @@ func setupForwarderBackend(parentCtx context.Context, wg *sync.WaitGroup, path s
 				errMsg = err.Error()
 			}
 			printf(
-				"[%s] discarding some log to %s because of error '%s'\n",
+				"[%s] discarding %d bytes of log to %s because of error '%s'\n",
 				time.Now().Format(time.RFC3339),
+				len(fwd.chunk),
 				path,
 				errMsg,
 			)
@@ -139,8 +140,7 @@ func (fwd *forwardState) doForward(ctx context.Context, path string) {
 	go func() {
 		defer wg.Done()
 		<-ctx.Done()
-		err := fwd.src.SetReadDeadline(time.Unix(0, 0))
-		check(err)
+		_ = fwd.src.SetReadDeadline(time.Unix(0, 0))
 		_ = dst.SetWriteDeadline(time.Unix(0, 0))
 	}()
 
