@@ -9,11 +9,11 @@ import (
 type svc string
 
 var cmdFn = map[string]func(svc){
-	"reopen":  (svc).cmdReopen,
-	"restart": (svc).cmdRestart,
-	"start":   (svc).cmdStart,
-	"status":  (svc).cmdStatus,
-	"stop":    (svc).cmdStop,
+	"reopen":  svc.cmdReopen,
+	"restart": svc.cmdRestart,
+	"start":   svc.cmdStart,
+	"status":  svc.cmdStatus,
+	"stop":    svc.cmdStop,
 }
 
 func Main() {
@@ -50,6 +50,8 @@ func (s svc) cmdReopen() {
 func (s svc) cmdRestart() {
 	pid := s.getSupervisorPid()
 	if pid == 0 {
+		printf("not running, it will do start instead")
+		s.cmdStart()
 		return
 	}
 
