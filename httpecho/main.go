@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"mime"
 	"net"
 	"net/http"
@@ -16,24 +19,32 @@ func main() {
 		port = "8080"
 	}
 
-	id := os.Getenv("ID")
+	var buf [6]byte
 
-	runExtraUDPEcho(id)
+	id := os.Getenv("ID")
+	if id == "" {
+		_, _ = io.ReadFull(rand.Reader, buf[:])
+		id = base64.RawURLEncoding.EncodeToString(buf[:])
+	}
+
+	_, _ = io.ReadFull(rand.Reader, buf[:])
+	instance := base64.RawURLEncoding.EncodeToString(buf[:])
+
+	runExtraUDPEcho(port, id, instance)
 
 	_, err := strconv.Atoi(port)
 	check(err)
 
-	err = http.ListenAndServe(":"+port, handler(id))
+	err = http.ListenAndServe(":"+port, handler(id, instance))
 	check(err)
 }
 
-func handler(id string) http.HandlerFunc {
+func handler(id, instance string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("got http request: %s > %s %s\n", r.RemoteAddr, r.Method, r.URL.EscapedPath())
 
-		if id != "" {
-			w.Header().Set("X-Id", id)
-		}
+		w.Header().Set("X-Id", id)
+		w.Header().Set("X-Instance", instance)
 
 		cty, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		if strings.HasPrefix(cty, "text/") || r.ContentLength == 0 {
@@ -51,16 +62,11 @@ func handler(id string) http.HandlerFunc {
 			w.Header().Add("X-Remote-Addr", r.RemoteAddr)
 		}
 
-		r.Write(w)
+		_ = r.Write(w)
 	}
 }
 
-func runExtraUDPEcho(id string) {
-	port := os.Getenv("UDPPORT")
-	if port == "" {
-		return
-	}
-
+func runExtraUDPEcho(port, id, instance string) {
 	_, err := strconv.Atoi(port)
 	check(err)
 
@@ -84,10 +90,10 @@ func runExtraUDPEcho(id string) {
 			dataIn := readBuf[:n]
 			dataOut := writeBuf[:0]
 
-			if id != "" {
-				dataOut = append(dataOut, id...)
-				dataOut = append(dataOut, ": "...)
-			}
+			dataOut = append(dataOut, id...)
+			dataOut = append(dataOut, ": "...)
+			dataOut = append(dataOut, instance...)
+			dataOut = append(dataOut, ": "...)
 			dataOut = append(dataOut, peer.String()...)
 			dataOut = append(dataOut, " > "...)
 			dataOut = append(dataOut, dataIn...)
