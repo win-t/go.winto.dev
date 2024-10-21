@@ -35,7 +35,13 @@ func main() {
 	_, err := strconv.Atoi(port)
 	check(err)
 
-	err = http.ListenAndServe(":"+port, handler(id, instance))
+	cert := os.Getenv("TLS_CERT")
+	key := os.Getenv("TLS_KEY")
+	if cert == "" || key == "" {
+		err = http.ListenAndServe(":"+port, handler(id, instance))
+	} else {
+		err = http.ListenAndServeTLS(":"+port, cert, key, handler(id, instance))
+	}
 	check(err)
 }
 
