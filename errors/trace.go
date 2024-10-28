@@ -1,17 +1,18 @@
 package errors
 
-type tracedErr struct {
-	ori  error
-	locs []Location
+// TracedErr is an error wrapper that have stack trace
+type TracedErr struct {
+	Original error
+	Trace    []Location
 }
 
-func (e *tracedErr) Error() string { return e.ori.Error() }
-func (e *tracedErr) Unwrap() error { return e.ori }
+func (e *TracedErr) Error() string { return e.Original.Error() }
+func (e *TracedErr) Unwrap() error { return e.Original }
 
-func findTracedErr(err error) *tracedErr {
+func findTracedErr(err error) error {
 	for err != nil {
 		switch err := err.(type) {
-		case *tracedErr:
+		case *TracedErr:
 			return err
 		case unwrapslice: // don't deep dive into multi error
 			return nil
@@ -30,7 +31,7 @@ func traceIfNeeded(err error, skip int) error {
 }
 
 func newTracedErr(err error, skip int) error {
-	return &tracedErr{err, getLocs(skip + 1)}
+	return &TracedErr{err, getLocs(skip + 1)}
 }
 
 // Trace will return new error that have stack trace
@@ -58,8 +59,8 @@ func Trace2[Ret any](ret Ret, err error) (Ret, error) {
 //
 // return nil if err doesn't have stack trace
 func StackTrace(err error) []Location {
-	if traced := findTracedErr(err); traced != nil {
-		return traced.locs
+	if err, ok := findTracedErr(err).(*TracedErr); ok {
+		return err.Trace
 	}
 	return nil
 }

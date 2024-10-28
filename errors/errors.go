@@ -80,8 +80,8 @@ func UnwrapSlice(err error) []error {
 	if u, ok := err.(unwrapslice); ok {
 		return u.Unwrap()
 	}
-	if err, ok := err.(*tracedErr); ok {
-		if u, ok := err.ori.(unwrapslice); ok {
+	if err, ok := err.(*TracedErr); ok {
+		if u, ok := err.Original.(unwrapslice); ok {
 			return u.Unwrap()
 		}
 	}

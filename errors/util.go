@@ -16,25 +16,21 @@ func makeOneLine(str string) string {
 func FormatWithFilter(err error, filter func(Location) bool) string {
 	var sb strings.Builder
 
-	if _, ok := err.(unwrapslice); ok {
-		sb.WriteString("Multi Error: ")
+	firstError := true
+	add := func(err error) error {
+		if firstError {
+			firstError = false
+		} else {
+			sb.WriteString("Caused by ")
+		}
+
+		sb.WriteString("Error => ")
 		sb.WriteString(makeOneLine(err.Error()))
 		sb.WriteByte('\n')
-	} else {
-		firstError := true
-		add := func(err error) {
-			if firstError {
-				firstError = false
-			} else {
-				sb.WriteString("Caused by ")
-			}
 
-			sb.WriteString("Error => ")
-			sb.WriteString(makeOneLine(err.Error()))
-			sb.WriteByte('\n')
-
+		if traced, ok := err.(*TracedErr); ok {
 			firstErrTrace := true
-			for _, l := range StackTrace(err) {
+			for _, l := range traced.Trace {
 				if filter != nil && !filter(l) {
 					continue
 				}
@@ -46,13 +42,16 @@ func FormatWithFilter(err error, filter func(Location) bool) string {
 				sb.WriteString(l.String())
 				sb.WriteByte('\n')
 			}
-		}
-
-		for err != nil {
-			add(err)
-			err = Unwrap(err)
+			return Unwrap(traced.Original)
+		} else {
+			return Unwrap(err)
 		}
 	}
+
+	for err != nil {
+		err = add(err)
+	}
+
 	return sb.String()
 }
 
@@ -67,5 +66,11 @@ func FormatWithFilterPkgs(err error, pkgs ...string) string {
 //
 // the returned string is not stable, future version maybe returned different format.
 func Format(err error) string {
-	return FormatWithFilter(err, nil)
+	return FormatWithFilter(err, defaultFilter)
+}
+
+var defaultFilter func(Location) bool
+
+func SetFormatFilterPkgs(pkgs ...string) {
+	defaultFilter = func(l Location) bool { return l.InPkg(pkgs...) }
 }
