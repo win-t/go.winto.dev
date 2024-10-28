@@ -1,30 +1,22 @@
 package errors
 
-import (
-	stderrors "errors"
-)
-
 type tracedErr struct {
-	err  error
+	ori  error
 	locs []Location
 }
 
-func (e *tracedErr) Error() string        { return e.err.Error() }
-func (e *tracedErr) Unwrap() error        { return stderrors.Unwrap(e.err) }
-func (e *tracedErr) As(target any) bool   { return stderrors.As(e.err, target) }
-func (e *tracedErr) Is(target error) bool { return stderrors.Is(e.err, target) }
+func (e *tracedErr) Error() string { return e.ori.Error() }
+func (e *tracedErr) Unwrap() error { return e.ori }
 
-type tracedSliceErr struct{ tracedErr }
-
-func (e *tracedSliceErr) Unwrap() []error { return e.err.(unwrapslice).Unwrap() }
-
-func findTracedErr(err error) error {
+func findTracedErr(err error) *tracedErr {
 	for err != nil {
-		switch err.(type) {
-		case *tracedErr, *tracedSliceErr:
+		switch err := err.(type) {
+		case *tracedErr:
 			return err
+		case unwrapslice: // don't deep dive into multi error
+			return nil
 		}
-		err = stderrors.Unwrap(err)
+		err = Unwrap(err)
 	}
 	return nil
 }
@@ -38,13 +30,6 @@ func traceIfNeeded(err error, skip int) error {
 }
 
 func newTracedErr(err error, skip int) error {
-	if _, ok := err.(unwrapslice); ok {
-		// we only care about trace locs of individual error
-		// so skipping locs for error slice
-		// keep in sync with [Catch]
-		return &tracedSliceErr{tracedErr{err, nil}}
-	}
-
 	return &tracedErr{err, getLocs(skip + 1)}
 }
 
@@ -61,23 +46,20 @@ func Trace(err error) error {
 }
 
 // like [Trace] but suitable for multiple return
-func Trace2[A any](a A, err error) (A, error) {
+func Trace2[Ret any](ret Ret, err error) (Ret, error) {
 	if err == nil {
-		return a, nil
+		return ret, nil
 	}
 
-	return a, traceIfNeeded(err, 1)
+	return ret, traceIfNeeded(err, 1)
 }
 
 // Get stack trace of err
 //
 // return nil if err doesn't have stack trace
 func StackTrace(err error) []Location {
-	switch err := findTracedErr(err).(type) {
-	case *tracedErr:
-		return err.locs
-	case *tracedSliceErr:
-		return err.tracedErr.locs
+	if traced := findTracedErr(err); traced != nil {
+		return traced.locs
 	}
 	return nil
 }

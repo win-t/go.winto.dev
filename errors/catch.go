@@ -29,11 +29,16 @@ func Catch(f func() error) (err error) {
 }
 
 // like [Catch] but suitable for function that return 2 values.
-func Catch2[A any](f func() (A, error)) (A, error) {
-	var a A
-	return a, Catch(func() error {
+func Catch2[Ret any](f func() (Ret, error)) (Ret, error) {
+	var ret Ret
+	return ret, Catch(func() error {
 		var err error
-		a, err = f()
+		ret, err = f()
 		return err
 	})
+}
+
+// like [Catch] but suitable for function doesn't expect to return error
+func Catch0(f func()) error {
+	return Catch(func() error { f(); return nil })
 }

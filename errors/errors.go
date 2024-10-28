@@ -36,6 +36,8 @@ func New(text string) error {
 
 // see [stdlib fmt.Errorf].
 //
+// Note: the returned error doesn't implement Unwrap() []error method like [stdlib fmt.Errorf] does, but you can use [Unwrap] it first to get the underlying fmt error.
+//
 // [stdlib fmt.Errorf]: https://pkg.go.dev/fmt/#Errorf
 func Errorf(format string, a ...any) error {
 	return newTracedErr(fmt.Errorf(format, a...), 1)
@@ -45,7 +47,7 @@ func Errorf(format string, a ...any) error {
 //
 // [stdlib errors.Join]: https://pkg.go.dev/errors/#As
 func Join(err ...error) error {
-	return newTracedErr(stderrors.Join(err...), 1)
+	return stderrors.Join(err...)
 }
 
 // will panic if err is not nil.
@@ -75,11 +77,15 @@ type unwrapslice interface{ Unwrap() []error }
 //
 // [stdlib errors.Unwrap]: https://pkg.go.dev/errors/#Unwrap
 func UnwrapSlice(err error) []error {
-	u, ok := err.(unwrapslice)
-	if !ok {
-		return nil
+	if u, ok := err.(unwrapslice); ok {
+		return u.Unwrap()
 	}
-	return u.Unwrap()
+	if err, ok := err.(*tracedErr); ok {
+		if u, ok := err.ori.(unwrapslice); ok {
+			return u.Unwrap()
+		}
+	}
+	return nil
 }
 
 // see [stdlib errors.ErrUnsupported].

@@ -53,9 +53,9 @@ func TestJoin(t *testing.T) {
 	b := errors.New("b")
 	c := errors.Join(a, b)
 
-	errs := c.(interface{ Unwrap() []error }).Unwrap()
+	errs := errors.UnwrapSlice(c)
 	if len(errs) != 2 {
-		t.Fatalf("invalid Unwrap")
+		t.Fatalf("invalid UnwrapSlice")
 	}
 
 	if !errors.Is(c, b) {
@@ -68,10 +68,6 @@ func TestJoin(t *testing.T) {
 
 	if errors.Unwrap(c) != nil {
 		t.Fatalf("invalid unwrap")
-	}
-
-	if errors.Trace(errors.Trace(c)) != c {
-		t.Fatalf("invalid Trace")
 	}
 }
 
@@ -80,9 +76,9 @@ func TestJoinErrorf(t *testing.T) {
 	b := errors.New("b")
 	c := errors.Errorf("hai %w %w", a, b)
 
-	errs := c.(interface{ Unwrap() []error }).Unwrap()
+	errs := errors.UnwrapSlice(c)
 	if len(errs) != 2 {
-		t.Fatalf("invalid Unwrap")
+		t.Fatalf("invalid UnwrapSlice")
 	}
 
 	if !errors.Is(c, b) {
@@ -91,14 +87,6 @@ func TestJoinErrorf(t *testing.T) {
 
 	if !errors.Is(c, a) {
 		t.Fatalf("invalid Is")
-	}
-
-	if errors.Unwrap(c) != nil {
-		t.Fatalf("invalid unwrap")
-	}
-
-	if errors.Trace(errors.Trace(c)) != c {
-		t.Fatalf("invalid Trace")
 	}
 }
 

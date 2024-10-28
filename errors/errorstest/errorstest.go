@@ -11,7 +11,7 @@ import (
 // [errors.Catch]: https://pkg.go.dev/go.winto.dev/errors#Catch
 // [errors.Format]: https://pkg.go.dev/go.winto.dev/errors#Format
 func Catch(t interface{ Fatal(...any) }, errFormater func(error) string, f func()) {
-	if err := errors.Catch(func() error { f(); return nil }); err != nil {
+	if err := errors.Catch0(f); err != nil {
 		if errFormater == nil {
 			errFormater = errors.Format
 		}

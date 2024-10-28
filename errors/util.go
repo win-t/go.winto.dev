@@ -16,24 +16,10 @@ func makeOneLine(str string) string {
 func FormatWithFilter(err error, filter func(Location) bool) string {
 	var sb strings.Builder
 
-	if errSlice, ok := err.(unwrapslice); ok {
-		sb.WriteString("Multi Error:\n")
-		for _, err := range errSlice.Unwrap() {
-			sb.WriteString("- Error => ")
-			sb.WriteString(makeOneLine(err.Error()))
-			sb.WriteByte('\n')
-
-			for _, l := range StackTrace(err) {
-				if filter != nil && !filter(l) {
-					continue
-				}
-				sb.WriteString("    Stack Trace:\n")
-				sb.WriteString("    - ")
-				sb.WriteString(l.String())
-				sb.WriteByte('\n')
-				break
-			}
-		}
+	if _, ok := err.(unwrapslice); ok {
+		sb.WriteString("Multi Error: ")
+		sb.WriteString(makeOneLine(err.Error()))
+		sb.WriteByte('\n')
 	} else {
 		firstError := true
 		add := func(err error) {
