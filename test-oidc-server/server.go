@@ -158,11 +158,13 @@ func (s *server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 			Aud      string `json:"aud"`
 			Iat      int64  `json:"iat"`
 			AuthTime int64  `json:"auth_time"`
+			Nonce    string `json:"nonce,omitempty"`
 		}{
 			Iss:      s.issuer,
 			Aud:      r.FormValue("client_id"),
 			Iat:      now,
 			AuthTime: now,
+			Nonce:    r.FormValue("nonce"),
 		}, "", "  ")
 		errors.Check(err)
 		claims = string(claimsBytes)
