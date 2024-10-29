@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authorize</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/foldgutter.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/lint/lint.min.css">
+
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/javascript/javascript.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/foldcode.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/foldgutter.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/fold/brace-fold.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/lint/lint.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/lint/json-lint.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jsonlint/1.6.0/jsonlint.min.js"></script>
+
+  <style>
+    .CodeMirror {
+      border: 1px solid black;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <form id="form" method="POST" class="my-3">
+      <div class="mb-3">
+        <label for="sub" class="form-label"><strong>Sub</strong></label>
+        <input id="sub" name="sub" class="form-control" value="{{ .Sub }}">
+        <div class="form-text">"sub" claim</div>
+      </div>
+      <div class="mb-3">
+        <label for="ttl" class="form-label"><strong>TTL</strong></label>
+        <input id="ttl" name="ttl" class="form-control" value="{{ .TTL }}" type="number" step="1">
+        <div class="form-text">"exp" claim calculated from "iat"</div>
+      </div>
+      <div class="mb-3">
+        <label for="claims" class="form-label">
+          <strong>JSON Claims</strong>
+        </label>
+        <textarea id="claims" name="claims" class="form-control">{{ .Claims }}</textarea>
+      </div>
+      <hr>
+      {{- if .Alert }}
+      <div class="alert alert-danger" role="alert">
+        {{ .Alert }}
+      </div>
+      {{- end }}
+      <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+  </div>
+
+  <script>
+    const sub = document.getElementById("sub");
+    const ttl = document.getElementById("ttl");
+    const claims = document.getElementById("claims");
+
+    (() => {
+      try {
+        let last = window.localStorage.getItem("last");
+        if (!last) return;
+        last = JSON.parse(last);
+        sub.value = last.sub;
+        ttl.value = last.ttl;
+        claims.value = JSON.stringify(Object.assign({}, last.claims, JSON.parse(claims.value)), null, 2);
+      } catch (e) {
+      }
+    })();
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const editor = CodeMirror.fromTextArea(claims, {
+        mode: "application/json",
+        theme: "default",
+        lineNumbers: true,
+        foldGutter: true,
+        lint: true,
+        gutters: ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]
+      });
+
+      document.getElementById("form").addEventListener("submit", (e) => {
+        try {
+          window.localStorage.setItem("last", JSON.stringify({
+            sub: sub.value,
+            ttl: ttl.value,
+            claims: JSON.parse(claims.value)
+          }));
+        } catch (e) {
+        }
+      });
+
+    })
+  </script>
+</body>
+
+</html>
