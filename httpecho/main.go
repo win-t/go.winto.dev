@@ -68,7 +68,10 @@ func handler(id, instance string) http.HandlerFunc {
 			w.Header().Add("X-Remote-Addr", r.RemoteAddr)
 		}
 
-		_ = r.Write(w)
+		err := r.Write(w)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error write response: %s\n", err.Error())
+		}
 	}
 }
 
