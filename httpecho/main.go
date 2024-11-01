@@ -83,8 +83,6 @@ func handler(id, instance string) http.HandlerFunc {
 		defer os.Remove(f.Name())
 		defer f.Close()
 
-		fmt.Println("DEBUG", f.Name())
-
 		err = r.Write(f)
 		check(err)
 
