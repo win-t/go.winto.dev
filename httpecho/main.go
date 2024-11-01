@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -49,6 +50,11 @@ func handler(id, instance string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("got http request: %s > %s %s\n", r.RemoteAddr, r.Method, r.URL.EscapedPath())
 
+		if r.ContentLength > 10<<20 { // 10MiB
+			http.Error(w, "request entity too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+
 		w.Header().Set("X-Id", id)
 		w.Header().Set("X-Instance", instance)
 
@@ -68,10 +74,24 @@ func handler(id, instance string) http.HandlerFunc {
 			w.Header().Add("X-Remote-Addr", r.RemoteAddr)
 		}
 
-		err := r.Write(w)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error write response: %s\n", err.Error())
+		dir := ""
+		if runtime.GOOS == "linux" {
+			dir = "/dev/shm"
 		}
+		f, err := os.CreateTemp(dir, "httpecho-body-*")
+		check(err)
+		defer os.Remove(f.Name())
+		defer f.Close()
+
+		fmt.Println("DEBUG", f.Name())
+
+		err = r.Write(f)
+		check(err)
+
+		_, err = f.Seek(0, io.SeekStart)
+		check(err)
+
+		_, _ = io.Copy(w, f)
 	}
 }
 
