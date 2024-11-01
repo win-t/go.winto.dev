@@ -32,7 +32,8 @@
     <form id="form" method="POST" class="my-3">
       <div class="mb-3">
         <label for="sub" class="form-label"><strong>Sub</strong></label>
-        <input id="sub" name="sub" class="form-control" value="{{ .Sub }}">
+        <input id="sub" name="sub" class="form-control" value="{{ .Sub }}" list="sub-datalist">
+        <datalist id="sub-datalist"></datalist>
         <div class="form-text">"sub" claim</div>
       </div>
       <div class="mb-3">
@@ -57,23 +58,19 @@
   </div>
 
   <script>
-    const sub = document.getElementById("sub");
-    const ttl = document.getElementById("ttl");
-    const claims = document.getElementById("claims");
-
-    (() => {
-      try {
-        let last = window.localStorage.getItem("last");
-        if (!last) return;
-        last = JSON.parse(last);
-        sub.value = last.sub;
-        ttl.value = last.ttl;
-        claims.value = JSON.stringify(Object.assign({}, last.claims, JSON.parse(claims.value)), null, 2);
-      } catch (e) {
-      }
-    })();
-
     window.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById("form");
+      const sub = document.getElementById("sub");
+      const subDatalist = document.getElementById("sub-datalist");
+      const ttl = document.getElementById("ttl");
+      const claims = document.getElementById("claims");
+
+      let data = {};
+      try {
+        const rawData = window.localStorage.getItem("data");
+        if (rawData) data = JSON.parse(rawData);
+      } catch (_) { }
+
       const editor = CodeMirror.fromTextArea(claims, {
         mode: "application/json",
         theme: "default",
@@ -83,18 +80,34 @@
         gutters: ["CodeMirror-lint-markers", "CodeMirror-linenumbers", "CodeMirror-foldgutter"]
       });
 
-      document.getElementById("form").addEventListener("submit", (e) => {
+      const originalClaims = editor.getValue();
+      const setFromData = (key) => {
+        const saved = data[key];
+        if (!saved) return;
         try {
-          window.localStorage.setItem("last", JSON.stringify({
-            sub: sub.value,
-            ttl: ttl.value,
-            claims: JSON.parse(claims.value)
-          }));
-        } catch (e) {
-        }
-      });
+          let claims = JSON.parse(originalClaims);
+          sub.value = saved.sub;
+          ttl.value = saved.ttl;
+          editor.setValue(JSON.stringify(Object.assign({}, claims, saved.claims), null, 2));
+        } catch (e) { }
+      }
+      if (data.__last) setFromData(data.__last);
 
-    })
+      subDatalist.innerHTML = Object.keys(data).filter(k => k !== "__last").map(k => `<option value="${k}"></option>`).join("");
+      sub.addEventListener("input", () => { setFromData(sub.value); });
+
+      form.addEventListener("submit", (e) => {
+        data.__last = sub.value;
+        const savedClaims = JSON.parse(claims.value);
+        delete savedClaims.nonce;
+        data[sub.value] = {
+          sub: sub.value,
+          ttl: ttl.value,
+          claims: savedClaims,
+        };
+        try { window.localStorage.setItem("data", JSON.stringify(data)); } catch (_) { }
+      });
+    });
   </script>
 </body>
 
