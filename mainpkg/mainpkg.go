@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -24,7 +25,7 @@ var (
 
 // Execute f, this function call os.Exit() after f returned or panic
 //
-// if the panic value throw by f implement [HasExitDetail], it will be used as exit detail.
+// if the panic value throw by f is [ExitCode], it will be used as exit code,
 // otherwise it will print stack trace and exit with code 1.
 //
 // Exec cannot be called twice.
@@ -35,14 +36,14 @@ func Exec(f func()) {
 		panic("cannot call mainpkg.Exec twice")
 	}
 
-	var eDetail ExitDetail
-	var errHappen bool
+	ecode := ExitCode(0)
+	dontWaitWg := false
 	defer func() {
 		lock.Unlock()
-		if !errHappen {
+		if !dontWaitWg {
 			wg.Wait()
 		}
-		os.Exit(eDetail.Code)
+		os.Exit(int(ecode))
 	}()
 
 	var cancelCtx context.CancelFunc
@@ -64,48 +65,29 @@ func Exec(f func()) {
 	})
 
 	called = true
+
 	lock.Unlock()
-	err := errors.Catch(func() error { f(); return nil })
+	err := errors.Catch0(f)
 	cancelCtx()
 	lock.Lock()
+
 	if err == nil {
 		return
 	}
-	errHappen = true
-	eDetail.Code = 1
 
-	if d := (HasExitDetail)(nil); errors.As(err, &d) {
-		eDetail = d.ExitDetail()
-	}
-
-	if eDetail.Message == "" {
-		eDetail.Message = errorFormatter(err)
-	}
-
-	if len(eDetail.Message) > 0 {
-		if eDetail.Message[len(eDetail.Message)-1] == '\n' {
-			fmt.Fprint(os.Stderr, eDetail.Message)
-		} else {
-			fmt.Fprintln(os.Stderr, eDetail.Message)
-		}
+	dontWaitWg = true
+	if newecode := ExitCode(0); errors.As(err, &newecode) {
+		ecode = newecode
+	} else {
+		ecode = 1
+		fmt.Fprintln(os.Stderr, strings.TrimSuffix(errors.Format(err), "\n"))
 	}
 }
 
-type ExitDetail struct {
-	Code    int
-	Message string
-}
+type ExitCode int
 
-type HasExitDetail interface {
-	ExitDetail() ExitDetail
-}
-
-func (e ExitDetail) Error() string {
-	return fmt.Sprintf("exit (%d): %s", e.Code, e.Message)
-}
-
-func (e ExitDetail) ExitDetail() ExitDetail {
-	return e
+func (e ExitCode) Error() string {
+	return fmt.Sprintf("exit (%d)", int(e))
 }
 
 // this Context is cancelled when graceful shutdown is requested (SIGTERM or SIGINT)
