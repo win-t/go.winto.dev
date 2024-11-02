@@ -1,5 +1,5 @@
 module go.winto.dev/async
 
-go 1.20
+go 1.23.2
 
-require go.winto.dev/errors v1.2.3
+require go.winto.dev/errors v1.4.0
