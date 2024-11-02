@@ -85,10 +85,9 @@
         const saved = data[key];
         if (!saved) return;
         try {
-          let claims = JSON.parse(originalClaims);
           sub.value = saved.sub;
           ttl.value = saved.ttl;
-          editor.setValue(JSON.stringify(Object.assign({}, claims, saved.claims), null, 2));
+          editor.setValue(JSON.stringify(Object.assign({}, saved.claims, JSON.parse(originalClaims)), null, 2));
         } catch (e) { }
       }
       if (data.__last) setFromData(data.__last);
@@ -99,6 +98,11 @@
       form.addEventListener("submit", (e) => {
         data.__last = sub.value;
         const savedClaims = JSON.parse(claims.value);
+        // delete auto-generated values
+        delete savedClaims.iss;
+        delete savedClaims.aud;
+        delete savedClaims.iat;
+        delete savedClaims.auth_time;
         delete savedClaims.nonce;
         data[sub.value] = {
           sub: sub.value,
