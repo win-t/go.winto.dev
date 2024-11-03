@@ -1,17 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io"
-	"mime"
 	"net"
 	"net/http"
 	"os"
-	"runtime"
 	"strconv"
-	"strings"
+	"sync"
+	"sync/atomic"
+	"unicode/utf8"
 )
 
 func main() {
@@ -47,23 +48,15 @@ func main() {
 }
 
 func handler(id, instance string) http.HandlerFunc {
+	var pool sync.Pool
+	const maxSize = 6 << 20        // 6MiB, assuming header is 1MiB and body is 6MiB
+	concurrencyLimit := int32(100) // set rough upper limit of memory consumption, 100 * 6MiB = 600MiB
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("got http request: %s > %s %s\n", r.RemoteAddr, r.Method, r.URL.EscapedPath())
 
-		if r.ContentLength > 10<<20 { // 10MiB
-			http.Error(w, "request entity too large", http.StatusRequestEntityTooLarge)
-			return
-		}
-
 		w.Header().Set("X-Id", id)
 		w.Header().Set("X-Instance", instance)
-
-		cty, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-		if strings.HasPrefix(cty, "text/") || r.ContentLength == 0 {
-			w.Header().Add("Content-Type", "text/plain")
-		} else {
-			w.Header().Add("Content-Type", "application/octet-stream")
-		}
 
 		localAddr, _ := r.Context().Value(http.LocalAddrContextKey).(net.Addr)
 		if localAddr != nil {
@@ -74,23 +67,48 @@ func handler(id, instance string) http.HandlerFunc {
 			w.Header().Add("X-Remote-Addr", r.RemoteAddr)
 		}
 
-		dir := ""
-		if runtime.GOOS == "linux" {
-			dir = "/dev/shm"
+		c := atomic.AddInt32(&concurrencyLimit, -1)
+		defer atomic.AddInt32(&concurrencyLimit, 1)
+		if c < 0 {
+			http.Error(w, "concurrency limit reached", http.StatusServiceUnavailable)
+			return
 		}
-		f, err := os.CreateTemp(dir, "httpecho-body-*")
-		check(err)
-		defer os.Remove(f.Name())
-		defer f.Close()
 
-		err = r.Write(f)
-		check(err)
+		buf, _ := pool.Get().(*bytes.Buffer)
+		if buf == nil {
+			buf = new(bytes.Buffer)
+		}
+		buf.Reset()
+		defer pool.Put(buf)
 
-		_, err = f.Seek(0, io.SeekStart)
-		check(err)
+		lw := &limitWriter{buf, maxSize}
+		_ = r.Write(lw)
+		if lw.limit < 0 {
+			w.Header().Add("X-Truncated", "true")
+		}
 
-		_, _ = io.Copy(w, f)
+		if utf8.Valid(buf.Bytes()) {
+			w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+		} else {
+			w.Header().Add("Content-Type", "application/octet-stream")
+		}
+
+		_, _ = io.Copy(w, buf)
 	}
+}
+
+type limitWriter struct {
+	w     io.Writer
+	limit int
+}
+
+func (l *limitWriter) Write(p []byte) (n int, err error) {
+	if l.limit <= 0 {
+		return 0, nil // discard
+	}
+	n, err = l.w.Write(p)
+	l.limit -= n
+	return n, err
 }
 
 func runExtraUDPEcho(port, id, instance string) {
