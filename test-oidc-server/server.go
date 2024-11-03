@@ -135,7 +135,7 @@ func (s *server) handleToken(r *http.Request) http.HandlerFunc {
 		ExpiresIn   int64  `json:"expires_in"`
 		IDToken     string `json:"id_token"`
 	}{
-		AccessToken: "acess_token_not_available",
+		AccessToken: "access_token_not_available",
 		TokenType:   "Bearer",
 		ExpiresIn:   expIn,
 		IDToken:     token,
