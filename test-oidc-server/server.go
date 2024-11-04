@@ -52,6 +52,7 @@ func (s *server) setupHandler() {
 	mux.HandleFunc("/.well-known/openid-configuration", httphandler.Of(s.handleDiscovery))
 	mux.HandleFunc("/jwks", httphandler.Of(s.handleJWKS))
 	mux.HandleFunc("/token", httphandler.Of(s.handleToken))
+	mux.HandleFunc("/userinfo", httphandler.Of(s.handleUserInfo))
 
 	mux.HandleFunc("/authorize", httphandler.Chain(
 		func(next http.HandlerFunc) http.HandlerFunc {
@@ -87,6 +88,7 @@ func (s *server) handleDiscovery(r *http.Request) http.HandlerFunc {
 		JwksURI                          string   `json:"jwks_uri"`
 		AuthorizationEndpoint            string   `json:"authorization_endpoint"`
 		TokenEndpoint                    string   `json:"token_endpoint"`
+		UserInfoEndpoint                 string   `json:"userinfo_endpoint"`
 		ResponseTypesSupported           []string `json:"response_types_supported"`
 		SubjectTypesSupported            []string `json:"subject_types_supported"`
 		IDTokenSigningAlgValuesSupported []string `json:"id_token_signing_alg_values_supported"`
@@ -95,6 +97,7 @@ func (s *server) handleDiscovery(r *http.Request) http.HandlerFunc {
 		JwksURI:                          s.issuer + "/jwks",
 		AuthorizationEndpoint:            s.issuer + "/authorize",
 		TokenEndpoint:                    s.issuer + "/token",
+		UserInfoEndpoint:                 s.issuer + "/userinfo",
 		ResponseTypesSupported:           []string{"code", "id_token"},
 		SubjectTypesSupported:            []string{"public"},
 		IDTokenSigningAlgValuesSupported: []string{s.jwk.Algorithm},
@@ -135,11 +138,39 @@ func (s *server) handleToken(r *http.Request) http.HandlerFunc {
 		ExpiresIn   int64  `json:"expires_in"`
 		IDToken     string `json:"id_token"`
 	}{
-		AccessToken: "access_token_not_available",
+		AccessToken: token,
 		TokenType:   "Bearer",
 		ExpiresIn:   expIn,
 		IDToken:     token,
 	})
+}
+
+func (s *server) handleUserInfo(r *http.Request) http.HandlerFunc {
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if token == "" {
+		return defresponse.Text(http.StatusUnauthorized, "missing Authorization")
+	}
+	jws, err := jose.ParseSignedCompact(token, []jose.SignatureAlgorithm{jose.SignatureAlgorithm(s.jwk.Algorithm)})
+	if err != nil {
+		return defresponse.Text(http.StatusBadRequest, "cannot parse token")
+	}
+	payload, err := jws.Verify(s.jwk)
+	if err != nil {
+		return defresponse.Text(http.StatusBadRequest, "cannot verify token")
+	}
+
+	var claims map[string]any
+	err = json.Unmarshal(payload, &claims)
+	errors.Check(err)
+
+	delete(claims, "iss")
+	delete(claims, "aud")
+	delete(claims, "iat")
+	delete(claims, "auth_time")
+	delete(claims, "nonce")
+	delete(claims, "exp")
+
+	return defresponse.JSON(http.StatusOK, claims)
 }
 
 func (s *server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
