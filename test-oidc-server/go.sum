@@ -10,8 +10,10 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 go.winto.dev/errors v1.4.0 h1:o9jQNqgSKwCfYKKREYXSYSzs16wT0KFahMmAp9poO+Q=
 go.winto.dev/errors v1.4.0/go.mod h1:x6lidXH4baa0nCXMkXDBzeiPI5s/xiZKYhHCrzleNzc=
-go.winto.dev/httphandler v1.0.1 h1:hxK178EoqzOC975zMEowd6dR5zJSlOPG1npmjlQRdew=
-go.winto.dev/httphandler v1.0.1/go.mod h1:oNrUxoEcChFcNCUor1thsqyCFPerteYjnSJAI4bpn2Q=
+go.winto.dev/httphandler v1.1.1 h1:Ff40edNsm2Nk8FJuynn5bRypsmkkcJJhEuX/WsKGyQQ=
+go.winto.dev/httphandler v1.1.1/go.mod h1:knd7d3Pbqkkt47oHuSxS9OVhWJfSdYTyxUUTVuE3WZc=
+go.winto.dev/typedcontext v1.0.3 h1:LHRZKzLx3dbM5j2HWPrvAS9B3pBXwgVd2UlkHu6qSWQ=
+go.winto.dev/typedcontext v1.0.3/go.mod h1:nYSpOg+UUA5bsDZgRcyppqeQ6LEyN5SR6ny6Mouc0LI=
 golang.org/x/crypto v0.28.0 h1:GBDwsMXVQi34v5CCYUm2jkJvu4cbtru2U4TN2PSyQnw=
 golang.org/x/crypto v0.28.0/go.mod h1:rmgy+3RHxRZMyY0jjAJShp2zgEdOqj2AO7U0pYmeQ7U=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=

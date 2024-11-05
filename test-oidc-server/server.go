@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -14,7 +15,9 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"go.winto.dev/errors"
 	"go.winto.dev/httphandler"
+	"go.winto.dev/httphandler/defmiddleware"
 	"go.winto.dev/httphandler/defresponse"
+	"go.winto.dev/typedcontext"
 )
 
 type server struct {
@@ -28,68 +31,111 @@ type server struct {
 	log       *log.Logger
 }
 
+type reqContext struct{ claims map[string]any }
+
 func newServer(issuer string, key jose.JSONWebKey, adminPass string, template *template.Template, log *log.Logger) *server {
-	signer, err := jose.NewSigner(
+	var err error
+
+	s := server{
+		issuer:    strings.TrimSuffix(issuer, "/"),
+		jwk:       key.Public(),
+		adminPass: adminPass,
+		template:  template,
+		log:       log,
+	}
+
+	s.signer, err = jose.NewSigner(
 		jose.SigningKey{Algorithm: jose.SignatureAlgorithm(key.Algorithm), Key: key},
 		(&jose.SignerOptions{}).WithType("JWT"),
 	)
 	errors.Check(err)
 
-	s := server{
-		issuer:    strings.TrimSuffix(issuer, "/"),
-		jwk:       key.Public(),
-		signer:    signer,
-		adminPass: adminPass,
-		template:  template,
-		log:       log,
-	}
-	s.setupHandler()
-
-	return &s
-}
-
-func (s *server) setupHandler() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/.well-known/openid-configuration", httphandler.Of(s.handleDiscovery))
-	mux.HandleFunc("/jwks", httphandler.Of(s.handleJWKS))
+	mux.HandleFunc("/.well-known/openid-configuration", s.handleDiscovery())
+	mux.HandleFunc("/jwks", s.handleJWKS())
+	mux.HandleFunc("/userinfo", httphandler.Chain(
+		defmiddleware.BearerHeaderAuth(s.verifyTokenAuth),
+		s.handleUserInfo,
+	))
 	mux.HandleFunc("/token", httphandler.Of(s.handleToken))
-	mux.HandleFunc("/userinfo", httphandler.Of(s.handleUserInfo))
-
 	mux.HandleFunc("/authorize", httphandler.Chain(
-		func(next http.HandlerFunc) http.HandlerFunc {
-			return func(w http.ResponseWriter, r *http.Request) {
-				user, pass, ok := r.BasicAuth()
-				if !ok || user != "admin" || pass != s.adminPass {
-					w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-					http.Error(w, "Unauthorized", http.StatusUnauthorized)
-					return
-				}
-				next(w, r)
-			}
-		},
+		defmiddleware.BasicAuth(s.verifyAdminAuth),
 		s.handleAuthorize,
 	))
 
 	s.Handler = httphandler.Chain(
-		func(next http.HandlerFunc) http.HandlerFunc {
-			return func(w http.ResponseWriter, r *http.Request) {
-				if err := errors.Catch0(func() { next(w, r) }); err != nil {
-					s.log.Print(errors.Format(err))
-					panic(http.ErrAbortHandler)
-				}
-			}
-		},
+		s.commonMiddleware,
 		mux,
 	)
+
+	return &s
 }
 
-func (s *server) handleDiscovery(r *http.Request) http.HandlerFunc {
-	return defresponse.JSON(http.StatusOK, struct {
+func (s *server) commonMiddleware(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	// Initialize reqContext
+	r = r.WithContext(typedcontext.New(r.Context(), &reqContext{}))
+
+	// Recover from panics and log the error
+	if err := errors.Catch0(func() { next(w, r) }); err != nil {
+		s.log.Print(errors.Format(err))
+		panic(http.ErrAbortHandler)
+	}
+}
+
+func (s *server) verifyAdminAuth(ctx context.Context, user, pass string) (bool, string) {
+	return user == "admin" && pass == s.adminPass, ""
+}
+
+func (s *server) verifyTokenAuth(ctx context.Context, token string) (bool, string) {
+	payload, _, err := s.verifyJWT(token)
+	if err != nil {
+		return false, err.Error()
+	}
+
+	var claims map[string]any
+	err = json.Unmarshal(payload, &claims)
+	errors.Check(err)
+
+	delete(claims, "iss")
+	delete(claims, "aud")
+	delete(claims, "iat")
+	delete(claims, "auth_time")
+	delete(claims, "nonce")
+	delete(claims, "exp")
+
+	typedcontext.MustGet[*reqContext](ctx).claims = claims
+
+	return true, ""
+}
+
+func (s *server) verifyJWT(jwt string) (payload []byte, exp int64, err error) {
+	jws, err := jose.ParseSignedCompact(jwt, []jose.SignatureAlgorithm{jose.SignatureAlgorithm(s.jwk.Algorithm)})
+	if err != nil {
+		return nil, 0, fmt.Errorf("cannot parse jwt")
+	}
+	payload, err = jws.Verify(s.jwk)
+	if err != nil {
+		return nil, 0, fmt.Errorf("cannot verify jwt")
+	}
+	var expData struct {
+		Exp int64 `json:"exp"`
+	}
+	err = json.Unmarshal(payload, &expData)
+	errors.Check(err)
+
+	if expData.Exp <= time.Now().Unix() {
+		return nil, expData.Exp, fmt.Errorf("jwt expired")
+	}
+	return payload, expData.Exp, nil
+}
+
+func (s *server) handleDiscovery() http.HandlerFunc {
+	resp, err := json.Marshal(struct {
 		Issuer                           string   `json:"issuer"`
 		JwksURI                          string   `json:"jwks_uri"`
-		AuthorizationEndpoint            string   `json:"authorization_endpoint"`
-		TokenEndpoint                    string   `json:"token_endpoint"`
 		UserInfoEndpoint                 string   `json:"userinfo_endpoint"`
+		TokenEndpoint                    string   `json:"token_endpoint"`
+		AuthorizationEndpoint            string   `json:"authorization_endpoint"`
 		ResponseTypesSupported           []string `json:"response_types_supported"`
 		SubjectTypesSupported            []string `json:"subject_types_supported"`
 		IDTokenSigningAlgValuesSupported []string `json:"id_token_signing_alg_values_supported"`
@@ -103,35 +149,26 @@ func (s *server) handleDiscovery(r *http.Request) http.HandlerFunc {
 		SubjectTypesSupported:            []string{"public"},
 		IDTokenSigningAlgValuesSupported: []string{s.jwk.Algorithm},
 	})
-}
-
-func (s *server) handleJWKS(r *http.Request) http.HandlerFunc {
-	return defresponse.JSON(http.StatusOK, jose.JSONWebKeySet{Keys: []jose.JSONWebKey{s.jwk}})
-}
-
-func (s *server) verify(token string) ([]byte, int64, error) {
-	jws, err := jose.ParseSignedCompact(token, []jose.SignatureAlgorithm{jose.SignatureAlgorithm(s.jwk.Algorithm)})
-	if err != nil {
-		return nil, 0, fmt.Errorf("cannot parse token")
-	}
-	payload, err := jws.Verify(s.jwk)
-	if err != nil {
-		return nil, 0, fmt.Errorf("cannot verify token")
-	}
-	var expData struct {
-		Exp int64 `json:"exp"`
-	}
-	err = json.Unmarshal(payload, &expData)
 	errors.Check(err)
-	if expData.Exp <= time.Now().Unix() {
-		return nil, expData.Exp, fmt.Errorf("token expired")
-	}
-	return payload, expData.Exp, nil
+
+	return defresponse.Data(http.StatusOK, "application/json", resp)
+}
+
+func (s *server) handleJWKS() http.HandlerFunc {
+	resp, err := json.Marshal(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{s.jwk}})
+	errors.Check(err)
+
+	return defresponse.Data(http.StatusOK, "application/json", resp)
+}
+
+func (s *server) handleUserInfo(r *http.Request) http.HandlerFunc {
+	claims := typedcontext.MustGet[*reqContext](r.Context()).claims
+	return defresponse.JSON(http.StatusOK, claims)
 }
 
 func (s *server) handleToken(r *http.Request) http.HandlerFunc {
 	token := r.FormValue("code")
-	_, exp, err := s.verify(token)
+	_, exp, err := s.verifyJWT(token)
 	if err != nil {
 		return defresponse.Text(http.StatusBadRequest, err.Error())
 	}
@@ -149,28 +186,7 @@ func (s *server) handleToken(r *http.Request) http.HandlerFunc {
 	})
 }
 
-func (s *server) handleUserInfo(r *http.Request) http.HandlerFunc {
-	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-	payload, _, err := s.verify(token)
-	if err != nil {
-		return defresponse.Text(http.StatusUnauthorized, err.Error())
-	}
-
-	var claims map[string]any
-	err = json.Unmarshal(payload, &claims)
-	errors.Check(err)
-
-	delete(claims, "iss")
-	delete(claims, "aud")
-	delete(claims, "iat")
-	delete(claims, "auth_time")
-	delete(claims, "nonce")
-	delete(claims, "exp")
-
-	return defresponse.JSON(http.StatusOK, claims)
-}
-
-func (s *server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleAuthorize(r *http.Request) http.HandlerFunc {
 	alert := ""
 
 	sub := "test-user@example.com"
@@ -227,10 +243,10 @@ func (s *server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 			claimsData["exp"] = int64(iat) + ttlInt
 		}
 
-		claimsByes, err := json.Marshal(claimsData)
+		claimsBytes, err := json.Marshal(claimsData)
 		errors.Check(err)
 
-		jws, err := s.signer.Sign(claimsByes)
+		jws, err := s.signer.Sign(claimsBytes)
 		errors.Check(err)
 
 		token, err := jws.CompactSerialize()
@@ -238,8 +254,7 @@ func (s *server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 		redirectURIStr := r.FormValue("redirect_uri")
 		if redirectURIStr == "" {
-			defresponse.Text(http.StatusOK, token)(w, r)
-			return
+			return defresponse.Text(http.StatusOK, token)
 		}
 
 		redirectURI, err := url.Parse(redirectURIStr)
@@ -258,15 +273,13 @@ func (s *server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		}
 		redirectURI.RawQuery = q.Encode()
 
-		http.Redirect(w, r, redirectURI.String(), http.StatusFound)
-		return
+		return defresponse.Redirect(http.StatusFound, redirectURI.String())
 
 	default:
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
+		return defresponse.Error(http.StatusMethodNotAllowed, "Method Not Allowed")
 	}
 
-	err := s.template.ExecuteTemplate(w, "authorize.html", struct {
+	return defresponse.HTMLTemplate(http.StatusOK, s.template, "authorize.html", struct {
 		Alert  string
 		Sub    string
 		TTL    string
@@ -277,5 +290,4 @@ func (s *server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		TTL:    ttl,
 		Claims: claims,
 	})
-	errors.Check(err)
 }
