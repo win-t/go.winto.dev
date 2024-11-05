@@ -204,6 +204,38 @@ func TestIfaceFunc(t *testing.T) {
 	checkBody(t, "123", h)
 }
 
+func TestHandlerFunc(t *testing.T) {
+	h := httphandler.Chain(
+		func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+			fmt.Fprint(w, "1")
+			next(w, r)
+			fmt.Fprint(w, "3")
+
+		},
+		func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, "2")
+		},
+	)
+
+	checkBody(t, "123", h)
+}
+
+func TestHandlerIface(t *testing.T) {
+	h := httphandler.Chain(
+		func(w http.ResponseWriter, r *http.Request, next http.Handler) {
+			fmt.Fprint(w, "1")
+			next.ServeHTTP(w, r)
+			fmt.Fprint(w, "3")
+
+		},
+		func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, "2")
+		},
+	)
+
+	checkBody(t, "123", h)
+}
+
 func ExampleChain() {
 	middleware1 := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {

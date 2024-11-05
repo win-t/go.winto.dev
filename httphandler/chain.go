@@ -15,6 +15,8 @@ type middleware = func(http.HandlerFunc) http.HandlerFunc
 //	func(next http.Handler) http.Handler
 //	func(next http.HandlerFunc) http.Handler
 //	func(next http.Handler) http.HandlerFunc
+//	func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc)
+//	func(w http.ResponseWriter, r *http.Request, next http.Handler)
 //
 // you can pass multiple middleware, slice/array of middlewares, or combination of them
 //
@@ -91,6 +93,26 @@ func addAsMiddleware(ret *[]middleware, a any) bool {
 	if setIfConvertible(a, &iface_func) {
 		*ret = append(*ret, func(next http.HandlerFunc) http.HandlerFunc {
 			return iface_func(next)
+		})
+		return true
+	}
+
+	var handler_func func(http.ResponseWriter, *http.Request, http.HandlerFunc)
+	if setIfConvertible(a, &handler_func) {
+		*ret = append(*ret, func(next http.HandlerFunc) http.HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request) {
+				handler_func(w, r, next)
+			}
+		})
+		return true
+	}
+
+	var handler_iface func(http.ResponseWriter, *http.Request, http.Handler)
+	if setIfConvertible(a, &handler_iface) {
+		*ret = append(*ret, func(next http.HandlerFunc) http.HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request) {
+				handler_iface(w, r, next)
+			}
 		})
 		return true
 	}
