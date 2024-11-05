@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -108,28 +109,31 @@ func (s *server) handleJWKS(r *http.Request) http.HandlerFunc {
 	return defresponse.JSON(http.StatusOK, jose.JSONWebKeySet{Keys: []jose.JSONWebKey{s.jwk}})
 }
 
-func (s *server) handleToken(r *http.Request) http.HandlerFunc {
-	token := r.FormValue("code")
-	if token == "" {
-		return defresponse.Text(http.StatusBadRequest, "missing code")
-	}
+func (s *server) verify(token string) ([]byte, int64, error) {
 	jws, err := jose.ParseSignedCompact(token, []jose.SignatureAlgorithm{jose.SignatureAlgorithm(s.jwk.Algorithm)})
 	if err != nil {
-		return defresponse.Text(http.StatusBadRequest, "cannot parse code")
+		return nil, 0, fmt.Errorf("cannot parse token")
 	}
 	payload, err := jws.Verify(s.jwk)
 	if err != nil {
-		return defresponse.Text(http.StatusBadRequest, "cannot verify code")
+		return nil, 0, fmt.Errorf("cannot verify token")
 	}
 	var expData struct {
 		Exp int64 `json:"exp"`
 	}
 	err = json.Unmarshal(payload, &expData)
 	errors.Check(err)
+	if expData.Exp <= time.Now().Unix() {
+		return nil, expData.Exp, fmt.Errorf("token expired")
+	}
+	return payload, expData.Exp, nil
+}
 
-	expIn := expData.Exp - time.Now().Unix()
-	if expIn <= 0 {
-		return defresponse.Text(http.StatusBadRequest, "code expired")
+func (s *server) handleToken(r *http.Request) http.HandlerFunc {
+	token := r.FormValue("code")
+	_, exp, err := s.verify(token)
+	if err != nil {
+		return defresponse.Text(http.StatusBadRequest, err.Error())
 	}
 
 	return defresponse.JSON(http.StatusOK, struct {
@@ -140,23 +144,16 @@ func (s *server) handleToken(r *http.Request) http.HandlerFunc {
 	}{
 		AccessToken: token,
 		TokenType:   "Bearer",
-		ExpiresIn:   expIn,
+		ExpiresIn:   exp - time.Now().Unix(),
 		IDToken:     token,
 	})
 }
 
 func (s *server) handleUserInfo(r *http.Request) http.HandlerFunc {
 	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-	if token == "" {
-		return defresponse.Text(http.StatusUnauthorized, "missing Authorization")
-	}
-	jws, err := jose.ParseSignedCompact(token, []jose.SignatureAlgorithm{jose.SignatureAlgorithm(s.jwk.Algorithm)})
+	payload, _, err := s.verify(token)
 	if err != nil {
-		return defresponse.Text(http.StatusBadRequest, "cannot parse token")
-	}
-	payload, err := jws.Verify(s.jwk)
-	if err != nil {
-		return defresponse.Text(http.StatusBadRequest, "cannot verify token")
+		return defresponse.Text(http.StatusUnauthorized, err.Error())
 	}
 
 	var claims map[string]any
