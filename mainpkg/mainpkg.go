@@ -21,6 +21,8 @@ var (
 	ctx    context.Context
 	sig    os.Signal
 	wg     async.WaitGroup
+
+	errorFormatter func(err error) string
 )
 
 // Execute f, this function call os.Exit() after f returned or panic
@@ -80,7 +82,13 @@ func Exec(f func()) {
 		ecode = newecode
 	} else {
 		ecode = 1
-		fmt.Fprintln(os.Stderr, strings.TrimSuffix(errors.Format(err), "\n"))
+		var msg string
+		if errorFormatter != nil {
+			msg = errorFormatter(err)
+		} else {
+			msg = errors.Format(err)
+		}
+		fmt.Fprintln(os.Stderr, strings.TrimSuffix(msg, "\n"))
 	}
 }
 
@@ -106,13 +114,6 @@ func Interrupted() os.Signal {
 // Return WaitGroup that will be waited after f passed to [Exec] return normally
 func WaitGroup() *async.WaitGroup {
 	return &wg
-}
-
-var errorFormatter = func(err error) string {
-	return errors.FormatWithFilter(
-		err,
-		func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainpkg") },
-	)
 }
 
 func SetErrorFormatter(f func(error) string) {
