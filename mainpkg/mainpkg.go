@@ -31,7 +31,7 @@ var (
 // otherwise it will print stack trace and exit with code 1.
 //
 // Exec cannot be called twice.
-func Exec(f func()) {
+func Exec(f func(), tracePkg ...string) {
 	lock.Lock()
 	if called {
 		lock.Unlock()
@@ -86,7 +86,11 @@ func Exec(f func()) {
 		if errorFormatter != nil {
 			msg = errorFormatter(err)
 		} else {
-			msg = errors.Format(err)
+			if len(tracePkg) > 0 {
+				msg = errors.FormatWithFilterPkgs(err, tracePkg...)
+			} else {
+				msg = errors.FormatWithFilter(err, func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainpkg") })
+			}
 		}
 		fmt.Fprintln(os.Stderr, strings.TrimSuffix(msg, "\n"))
 	}
