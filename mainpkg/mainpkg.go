@@ -22,7 +22,7 @@ var (
 	sig    os.Signal
 	wg     async.WaitGroup
 
-	errorFormatter func(err error) string
+	errLogger func(error)
 )
 
 // Execute f, this function call os.Exit() after f returned or panic
@@ -83,16 +83,16 @@ func Exec(f func(), tracePkg ...string) {
 	} else {
 		ecode = 1
 		var msg string
-		if errorFormatter != nil {
-			msg = errorFormatter(err)
+		if errLogger != nil {
+			errLogger(err)
 		} else {
 			if len(tracePkg) > 0 {
 				msg = errors.FormatWithFilterPkgs(err, tracePkg...)
 			} else {
 				msg = errors.FormatWithFilter(err, func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainpkg") })
 			}
+			fmt.Fprintln(os.Stderr, strings.TrimSuffix(msg, "\n"))
 		}
-		fmt.Fprintln(os.Stderr, strings.TrimSuffix(msg, "\n"))
 	}
 }
 
@@ -120,8 +120,9 @@ func WaitGroup() *async.WaitGroup {
 	return &wg
 }
 
-func SetErrorFormatter(f func(error) string) {
+// SetErrLogger set the error logger, default is the error will be printed to os.Stderr
+func SetErrLogger(f func(error)) {
 	lock.Lock()
-	errorFormatter = f
+	errLogger = f
 	lock.Unlock()
 }
