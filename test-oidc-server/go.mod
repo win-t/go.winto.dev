@@ -9,4 +9,4 @@ require (
 	go.winto.dev/typedcontext v1.0.3
 )
 
-require golang.org/x/crypto v0.28.0 // indirect
+require golang.org/x/crypto v0.31.0 // indirect
