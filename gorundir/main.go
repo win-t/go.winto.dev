@@ -42,8 +42,7 @@ func main() {
 	goBuild.Stdin, goBuild.Stdout, goBuild.Stderr = nil, os.Stdout, os.Stderr
 	err = goBuild.Run()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "FATAL: cannot build "+relDir)
-		os.Exit(1)
+		exitErr("cannot build " + relDir)
 	}
 
 	err = syscall.Exec(targetFullPath, os.Args[1:], os.Environ())
