@@ -24,22 +24,27 @@ func Dash(cmd string, args ...string) (stdout, stderr string, code int) {
 }
 
 func shell(shell, cmd string, args ...string) (string, string, int) {
-	var out, err bytes.Buffer
-	bash := exec.Command(shell, append([]string{"-c", cmd, "-"}, args...)...)
-	bash.Stdout = &out
-	bash.Stderr = &err
-	code := 0
-	if ee, ok := bash.Run().(*exec.ExitError); ok {
-		code = ee.ExitCode()
+	var outBuf, errBuf bytes.Buffer
+	proc := exec.Command(shell, append([]string{"-c", cmd, "-"}, args...)...)
+	proc.Stdout = &outBuf
+	proc.Stderr = &errBuf
+
+	err := proc.Run()
+	if err == nil {
+		return outBuf.String(), errBuf.String(), 0
+	}
+
+	if ee, ok := err.(*exec.ExitError); ok {
+		code := ee.ExitCode()
 		if !ee.Exited() {
 			if status, ok := ee.Sys().(syscall.WaitStatus); ok {
 				code = 128 + int(status.Signal())
 			}
 		}
-	} else {
-		code = -1
+		return outBuf.String(), errBuf.String(), code
 	}
-	return out.String(), err.String(), code
+
+	return "", "cannot execute shell: " + err.Error(), -1
 }
 
 // Escape escapes a string for use in shell commands, wrapping it in single quotes
