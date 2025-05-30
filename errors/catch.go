@@ -12,7 +12,7 @@ func Catch(f func() error) (err error) {
 
 		recErr, ok := rec.(error)
 		if !ok {
-			err = newTracedErr(fmt.Errorf("%v", rec), 1)
+			err = &TracedErr{fmt.Errorf("%v", rec), getLocs(1)}
 			return
 		}
 
@@ -21,7 +21,7 @@ func Catch(f func() error) (err error) {
 			return
 		}
 
-		// must have stack trace
+		// error from recovered panic must have stack trace
 		err = Errorf("panic: %w", recErr)
 	}()
 

@@ -9,6 +9,7 @@ type TracedErr struct {
 func (e *TracedErr) Error() string { return e.Original.Error() }
 func (e *TracedErr) Unwrap() error { return e.Original }
 
+//go:noinline
 func findTracedErr(err error) error {
 	for err != nil {
 		switch err := err.(type) {
@@ -27,10 +28,6 @@ func traceIfNeeded(err error, skip int) error {
 		return err
 	}
 
-	return newTracedErr(err, skip+1)
-}
-
-func newTracedErr(err error, skip int) error {
 	return &TracedErr{err, getLocs(skip + 1)}
 }
 
