@@ -42,6 +42,15 @@ func shell(shell, cmd string, args ...string) (string, string, int) {
 }
 
 // Escape escapes a string for use in shell commands, wrapping it in single quotes
-func Escape(s string) string {
-	return `'` + strings.ReplaceAll(s, `'`, `'\''`) + `'`
+func Escape(ss ...string) string {
+	var sb strings.Builder
+	for i, s := range ss {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString(`'`)
+		sb.WriteString(strings.ReplaceAll(s, `'`, `'\''`))
+		sb.WriteString(`'`)
+	}
+	return sb.String()
 }
