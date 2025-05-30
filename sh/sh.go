@@ -29,14 +29,15 @@ func shell(shell, cmd string, args ...string) (string, string, int) {
 	bash.Stdout = &out
 	bash.Stderr = &err
 	code := 0
-	if ee, _ := bash.Run().(*exec.ExitError); ee != nil {
-		if ee.Exited() {
-			code = ee.ExitCode()
-		} else {
+	if ee, ok := bash.Run().(*exec.ExitError); ok {
+		code = ee.ExitCode()
+		if !ee.Exited() {
 			if status, ok := ee.Sys().(syscall.WaitStatus); ok {
 				code = 128 + int(status.Signal())
 			}
 		}
+	} else {
+		code = -1
 	}
 	return out.String(), err.String(), code
 }
