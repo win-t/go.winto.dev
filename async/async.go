@@ -1,6 +1,7 @@
 package async
 
 import (
+	"context"
 	"sync"
 
 	"go.winto.dev/errors"
@@ -37,4 +38,29 @@ func (wg *WaitGroup) Go(f func()) {
 		defer wg.Done()
 		f()
 	}()
+}
+
+// ChanCtx return iterator function that will yield values in the ch or until ctx is done
+//
+// similar to following code, but can be canceled by the context
+//
+//	for value := range ch {
+//		// ...
+//	}
+func ChanCtx[T any](ctx context.Context, ch <-chan T) func(func(T) bool) {
+	return func(yield func(T) bool) {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case value, ok := <-ch:
+				if !ok {
+					return
+				}
+				if !yield(value) {
+					return
+				}
+			}
+		}
+	}
 }
