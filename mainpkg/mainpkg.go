@@ -51,7 +51,9 @@ func Exec(f func(), tracePkg ...string) {
 	var cancelCtx context.CancelFunc
 	ctx, cancelCtx = context.WithCancel(context.Background())
 
-	wg.Go(func() {
+	var signalWg async.WaitGroup
+	defer signalWg.Wait()
+	signalWg.Go(func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
 		defer signal.Stop(c)
