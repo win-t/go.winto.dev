@@ -9,19 +9,35 @@ import (
 	"syscall"
 )
 
-func Sh(cmd string, opts ...func(*builder)) string {
-	return newBuilder("sh", cmd, opts...).exec()
+type OptFn func(*execOpt)
+
+var useStderrMarker string
+
+// Sh executes "sh -c cmd"
+func Sh(cmd string, opts ...OptFn) string {
+	return doShell("sh", cmd, opts...)
 }
 
-func Bash(cmd string, opts ...func(*builder)) string {
-	return newBuilder("bash", cmd, opts...).exec()
+// Bash executes "bash -c cmd"
+func Bash(cmd string, opts ...OptFn) string {
+	return doShell("bash", cmd, opts...)
 }
 
-func Dash(cmd string, opts ...func(*builder)) string {
-	return newBuilder("dash", cmd, opts...).exec()
+// Dash executes "dash -c cmd"
+func Dash(cmd string, opts ...OptFn) string {
+	return doShell("dash", cmd, opts...)
 }
 
-func (b *builder) exec() string {
+func doShell(shell string, cmd string, opts ...OptFn) string {
+	b := &execOpt{
+		cmd:       cmd,
+		shell:     shell,
+		stderrDst: &useStderrMarker,
+	}
+	for _, opt := range opts {
+		opt(b)
+	}
+
 	var outBuf, errBuf bytes.Buffer
 	proc := exec.Command(b.shell, append([]string{"-c", b.cmd, "-"}, b.args...)...)
 	if b.stdin != "" {
@@ -31,7 +47,7 @@ func (b *builder) exec() string {
 		proc.Stdout = &outBuf
 	}
 	if b.stderrDst != nil {
-		if b.stderrDst == &passStderrMarker {
+		if b.stderrDst == &useStderrMarker {
 			proc.Stderr = os.Stderr
 		} else {
 			proc.Stderr = &errBuf
@@ -42,11 +58,12 @@ func (b *builder) exec() string {
 	}
 
 	err := proc.Run()
+	stdout := strings.TrimRight(outBuf.String(), "\r\n") // simulate shell command substitution behavior
 	if err == nil {
-		if b.stderrDst != nil && b.stderrDst != &passStderrMarker {
+		if b.stderrDst != nil && b.stderrDst != &useStderrMarker {
 			*b.stderrDst = errBuf.String()
 		}
-		return outBuf.String()
+		return stdout
 	}
 	if b.errDst != nil {
 		*b.errDst = err
@@ -64,7 +81,7 @@ func (b *builder) exec() string {
 		}
 	}
 
-	return outBuf.String()
+	return stdout
 }
 
 // Escape escapes a string for use in shell commands, wrapping it in single quotes
