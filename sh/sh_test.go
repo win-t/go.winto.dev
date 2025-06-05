@@ -70,3 +70,9 @@ func TestEscape(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestEnv(t *testing.T) {
+	if Sh(`echo $ENV_INPUT`, Env(map[string]string{"ENV_INPUT": "Hello World"})) != "Hello World" {
+		t.Fatal()
+	}
+}

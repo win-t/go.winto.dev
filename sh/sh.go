@@ -40,6 +40,9 @@ func doShell(shell string, cmd string, opts ...OptFn) string {
 
 	var outBuf, errBuf bytes.Buffer
 	proc := exec.Command(b.shell, append([]string{"-c", b.cmd, "-"}, b.args...)...)
+	if b.envs != nil {
+		proc.Env = append(os.Environ(), b.envs...)
+	}
 	if b.stdin != "" {
 		proc.Stdin = strings.NewReader(b.stdin)
 	}

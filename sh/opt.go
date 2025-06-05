@@ -9,6 +9,7 @@ type execOpt struct {
 	stdin       string
 	noStdout    bool
 	stderrDst   *string
+	envs        []string
 	tapCmd      []func(*exec.Cmd)
 	exitCodeDst *int
 	errDst      *error
@@ -59,5 +60,13 @@ func StoreExitCode(dst *int) OptFn {
 func StoreError(dst *error) OptFn {
 	return func(b *execOpt) {
 		b.errDst = dst
+	}
+}
+
+func Env(env map[string]string) OptFn {
+	return func(b *execOpt) {
+		for k, v := range env {
+			b.envs = append(b.envs, k+"="+v)
+		}
 	}
 }
