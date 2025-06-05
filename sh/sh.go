@@ -3,24 +3,25 @@ package sh
 
 import (
 	"bytes"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 )
 
-func Sh(cmd string, opts ...func(*Builder)) *Builder {
-	return newBuilder("sh", cmd, opts...)
+func Sh(cmd string, opts ...func(*builder)) string {
+	return newBuilder("sh", cmd, opts...).exec()
 }
 
-func Bash(cmd string, opts ...func(*Builder)) *Builder {
-	return newBuilder("bash", cmd, opts...)
+func Bash(cmd string, opts ...func(*builder)) string {
+	return newBuilder("bash", cmd, opts...).exec()
 }
 
-func Dash(cmd string, opts ...func(*Builder)) *Builder {
-	return newBuilder("dash", cmd, opts...)
+func Dash(cmd string, opts ...func(*builder)) string {
+	return newBuilder("dash", cmd, opts...).exec()
 }
 
-func (b *Builder) Run() string {
+func (b *builder) exec() string {
 	var outBuf, errBuf bytes.Buffer
 	proc := exec.Command(b.shell, append([]string{"-c", b.cmd, "-"}, b.args...)...)
 	if b.stdin != "" {
@@ -30,7 +31,11 @@ func (b *Builder) Run() string {
 		proc.Stdout = &outBuf
 	}
 	if b.stderrDst != nil {
-		proc.Stderr = &errBuf
+		if b.stderrDst == &passStderrMarker {
+			proc.Stderr = os.Stderr
+		} else {
+			proc.Stderr = &errBuf
+		}
 	}
 	for _, tap := range b.tapCmd {
 		tap(proc)
@@ -38,7 +43,7 @@ func (b *Builder) Run() string {
 
 	err := proc.Run()
 	if err == nil {
-		if b.stderrDst != nil {
+		if b.stderrDst != nil && b.stderrDst != &passStderrMarker {
 			*b.stderrDst = errBuf.String()
 		}
 		return outBuf.String()

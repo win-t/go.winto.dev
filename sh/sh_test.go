@@ -3,77 +3,70 @@ package sh
 import (
 	"errors"
 	"os/exec"
-	"strings"
 	"testing"
 )
 
 func TestNormal(t *testing.T) {
-	out := Sh("echo Hello World").Run()
-	if out != "Hello World\n" {
-		t.Errorf("Expected 'Hello World', got '%s'", out)
+	if Sh("echo Hello World") != "Hello World\n" {
+		t.Fatal()
 	}
 }
 
 func TestArgs(t *testing.T) {
-	out := Sh("printf '%s+%s' $1 $2", Args("Hello", "World")).Run()
-	if out != "Hello+World" {
-		t.Errorf("Expected 'Hello World', got '%s'", out)
+	if Sh("printf '%s+%s' $1 $2", Args("Hello", "World")) != "Hello+World" {
+		t.Fatal()
 	}
 }
 
 func TestStdin(t *testing.T) {
-	out := Sh("cat", Stdin("Hello World")).Run()
-	if out != "Hello World" {
-		t.Errorf("Expected 'Hello World', got '%s'", out)
+	if Sh("cat", Stdin("Hello World")) != "Hello World" {
+		t.Fatal()
 	}
 }
 
-func TestDiscardStdout(t *testing.T) {
-	out := Sh("echo Hello World", DiscardStdout).Run()
-	if out != "" {
-		t.Errorf("Expected '', got '%s'", out)
+func TestDiscard(t *testing.T) {
+	if Sh("echo Hello World", DiscardStdout, DiscardStderr) != "" {
+		t.Fatal()
 	}
 }
 
 func TestStderr(t *testing.T) {
 	var stderr string
-	Sh("echo Hello World >&2", StoreStderr(&stderr)).Run()
+	Sh("echo Hello World >&2", StoreStderr(&stderr))
 	if stderr != "Hello World\n" {
-		t.Errorf("Expected 'Hello World', got '%s'", stderr)
+		t.Fatal()
 	}
 }
 
 func TestTap(t *testing.T) {
-	out := Sh("cat", Tap(func(c *exec.Cmd) {
-		c.Stdin = strings.NewReader("Hello World")
-	})).Run()
-	if out != "Hello World" {
-		t.Errorf("Expected 'Hello World', got '%s'", out)
+	if Sh("echo $ENV_INPUT", Tap(func(c *exec.Cmd) { c.Env = append(c.Env, "ENV_INPUT=Hello World") })) != "Hello World\n" {
+		t.Fatal()
 	}
 }
 
 func TestExitCode(t *testing.T) {
 	var exitCode int
-	Sh("kill $$ TERM", StoreExitCode(&exitCode)).Run()
+	Sh("kill $$ TERM", StoreExitCode(&exitCode))
 	if exitCode != 143 {
-		t.Errorf("Expected exit code 143, got %d", exitCode)
+		t.Fatal()
 	}
 }
 
 func TestStoreError(t *testing.T) {
 	var errDst error
-	Sh("exec false", StoreError(&errDst)).Run()
+	Sh("exec false", StoreError(&errDst))
+
 	var realErr *exec.ExitError
 	if !errors.As(errDst, &realErr) {
-		t.Error("Expected an error, got nil")
+		t.Fatal()
 	}
 	if realErr.ExitCode() != 1 {
-		t.Errorf("Expected exit code 1, got %d", realErr.ExitCode())
+		t.Fatal()
 	}
 }
 
 func TestEscape(t *testing.T) {
 	if Escape(`ab'cd`, `hello world`) != `'ab'\''cd' 'hello world'` {
-		t.Error("Escape function did not return expected result")
+		t.Fatal()
 	}
 }

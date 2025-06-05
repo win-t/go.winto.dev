@@ -2,7 +2,9 @@ package sh
 
 import "os/exec"
 
-type Builder struct {
+var passStderrMarker string
+
+type builder struct {
 	shell       string
 	cmd         string
 	args        []string
@@ -14,10 +16,11 @@ type Builder struct {
 	errDst      *error
 }
 
-func newBuilder(shell string, cmd string, opts ...func(*Builder)) *Builder {
-	b := &Builder{
-		cmd:   cmd,
-		shell: shell,
+func newBuilder(shell string, cmd string, opts ...func(*builder)) *builder {
+	b := &builder{
+		cmd:       cmd,
+		shell:     shell,
+		stderrDst: &passStderrMarker,
 	}
 	for _, opt := range opts {
 		opt(b)
@@ -25,42 +28,46 @@ func newBuilder(shell string, cmd string, opts ...func(*Builder)) *Builder {
 	return b
 }
 
-func Args(args ...string) func(*Builder) {
-	return func(b *Builder) {
+func Args(args ...string) func(*builder) {
+	return func(b *builder) {
 		b.args = args
 	}
 }
 
-func Stdin(stdin string) func(*Builder) {
-	return func(b *Builder) {
+func Stdin(stdin string) func(*builder) {
+	return func(b *builder) {
 		b.stdin = stdin
 	}
 }
 
-func DiscardStdout(b *Builder) {
+func DiscardStdout(b *builder) {
 	b.noStdout = true
 }
 
-func StoreStderr(dst *string) func(*Builder) {
-	return func(b *Builder) {
+func DiscardStderr(b *builder) {
+	b.stderrDst = nil
+}
+
+func StoreStderr(dst *string) func(*builder) {
+	return func(b *builder) {
 		b.stderrDst = dst
 	}
 }
 
-func Tap(f func(*exec.Cmd)) func(*Builder) {
-	return func(b *Builder) {
+func Tap(f func(*exec.Cmd)) func(*builder) {
+	return func(b *builder) {
 		b.tapCmd = append(b.tapCmd, f)
 	}
 }
 
-func StoreExitCode(dst *int) func(*Builder) {
-	return func(b *Builder) {
+func StoreExitCode(dst *int) func(*builder) {
+	return func(b *builder) {
 		b.exitCodeDst = dst
 	}
 }
 
-func StoreError(dst *error) func(*Builder) {
-	return func(b *Builder) {
+func StoreError(dst *error) func(*builder) {
+	return func(b *builder) {
 		b.errDst = dst
 	}
 }
