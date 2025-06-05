@@ -36,16 +36,25 @@ func main() {
 		nameParts = nameParts[1:]
 	}
 
-	targetFullPath := filepath.Join(cacheDir, "gorundir", strings.Join(nameParts, "-"))
+	compiledPath := filepath.Join(cacheDir, "gorundir", strings.Join(nameParts, "-"))
 
-	goBuild := exec.Command("go", "build", "-C", targetDir, "-o", targetFullPath, ".")
+	goBuild := exec.Command("go", "build", "-C", targetDir, "-o", compiledPath, ".")
 	goBuild.Stdin, goBuild.Stdout, goBuild.Stderr = nil, os.Stdout, os.Stderr
 	err = goBuild.Run()
 	if err != nil {
-		exitErr("cannot build " + relDir)
+		exitErr("gorundir: cannot build " + relDir)
 	}
 
-	err = syscall.Exec(targetFullPath, os.Args[1:], os.Environ())
+	var args []string
+	for i, arg := range os.Args[1:] {
+		if i == 0 && relDir == "." {
+			args = append(args, filepath.Base(targetDir))
+		} else {
+			args = append(args, arg)
+		}
+	}
+
+	err = syscall.Exec(compiledPath, args, os.Environ())
 	check(err)
 }
 
