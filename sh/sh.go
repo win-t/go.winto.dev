@@ -8,43 +8,58 @@ import (
 	"syscall"
 )
 
-// Executes "sh -c ..." and returns its stdout, stderr, and exit code.
-func Sh(cmd string, args ...string) (stdout, stderr string, code int) {
-	return shell("sh", cmd, args...)
+func Sh(cmd string, opts ...func(*Builder)) *Builder {
+	return newBuilder("sh", cmd, opts...)
 }
 
-// Executes "bash -c ..." and returns its stdout, stderr, and exit code.
-func Bash(cmd string, args ...string) (stdout, stderr string, code int) {
-	return shell("bash", cmd, args...)
+func Bash(cmd string, opts ...func(*Builder)) *Builder {
+	return newBuilder("bash", cmd, opts...)
 }
 
-// Executes "dash -c ..." and returns its stdout, stderr, and exit code.
-func Dash(cmd string, args ...string) (stdout, stderr string, code int) {
-	return shell("dash", cmd, args...)
+func Dash(cmd string, opts ...func(*Builder)) *Builder {
+	return newBuilder("dash", cmd, opts...)
 }
 
-func shell(shell, cmd string, args ...string) (string, string, int) {
+func (b *Builder) Run() string {
 	var outBuf, errBuf bytes.Buffer
-	proc := exec.Command(shell, append([]string{"-c", cmd, "-"}, args...)...)
-	proc.Stdout = &outBuf
-	proc.Stderr = &errBuf
+	proc := exec.Command(b.shell, append([]string{"-c", b.cmd, "-"}, b.args...)...)
+	if b.stdin != "" {
+		proc.Stdin = strings.NewReader(b.stdin)
+	}
+	if !b.noStdout {
+		proc.Stdout = &outBuf
+	}
+	if b.stderrDst != nil {
+		proc.Stderr = &errBuf
+	}
+	for _, tap := range b.tapCmd {
+		tap(proc)
+	}
 
 	err := proc.Run()
 	if err == nil {
-		return outBuf.String(), errBuf.String(), 0
-	}
-
-	if ee, ok := err.(*exec.ExitError); ok {
-		code := ee.ExitCode()
-		if !ee.Exited() {
-			if status, ok := ee.Sys().(syscall.WaitStatus); ok {
-				code = 128 + int(status.Signal())
-			}
+		if b.stderrDst != nil {
+			*b.stderrDst = errBuf.String()
 		}
-		return outBuf.String(), errBuf.String(), code
+		return outBuf.String()
+	}
+	if b.errDst != nil {
+		*b.errDst = err
 	}
 
-	return "", "cannot execute shell: " + err.Error(), -1
+	if b.exitCodeDst != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			code := ee.ExitCode()
+			if !ee.Exited() {
+				if status, ok := ee.Sys().(syscall.WaitStatus); ok {
+					code = 128 + int(status.Signal())
+				}
+			}
+			*b.exitCodeDst = code
+		}
+	}
+
+	return outBuf.String()
 }
 
 // Escape escapes a string for use in shell commands, wrapping it in single quotes
