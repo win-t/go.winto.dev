@@ -1,9 +1,11 @@
 package sh
 
 import (
+	"context"
 	"errors"
 	"os/exec"
 	"testing"
+	"time"
 )
 
 func TestNormal(t *testing.T) {
@@ -39,7 +41,7 @@ func TestStderr(t *testing.T) {
 }
 
 func TestTap(t *testing.T) {
-	if Sh(`echo $ENV_INPUT`, Tap(func(c *exec.Cmd) { c.Env = append(c.Env, "ENV_INPUT=Hello World") })) != "Hello World" {
+	if Sh(`echo $ENV_INPUT`, TapExecCmd(func(c *exec.Cmd) { c.Env = append(c.Env, "ENV_INPUT=Hello World") })) != "Hello World" {
 		t.Fatal()
 	}
 }
@@ -72,7 +74,19 @@ func TestEscape(t *testing.T) {
 }
 
 func TestEnv(t *testing.T) {
-	if Sh(`echo $ENV_INPUT`, Env(map[string]string{"ENV_INPUT": "Hello World"})) != "Hello World" {
+	if Sh(`echo $ENV_INPUT`, EnvMap(map[string]string{"ENV_INPUT": "Hello World"})) != "Hello World" {
+		t.Fatal()
+	}
+}
+
+func TestContext(t *testing.T) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(100*time.Millisecond))
+	defer cancel()
+
+	var code int
+	Sh(`sleep 10`, Context(ctx), StoreExitCode(&code), DiscardStderr(), DiscardStdout())
+
+	if code != 137 {
 		t.Fatal()
 	}
 }

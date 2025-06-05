@@ -1,8 +1,11 @@
 package sh
 
-import "os/exec"
+import (
+	"context"
+	"os/exec"
+)
 
-type execOpt struct {
+type shellOpt struct {
 	shell       string
 	cmd         string
 	args        []string
@@ -13,60 +16,73 @@ type execOpt struct {
 	tapCmd      []func(*exec.Cmd)
 	exitCodeDst *int
 	errDst      *error
+	ctx         context.Context
 }
 
 func Args(args ...string) OptFn {
-	return func(b *execOpt) {
+	return func(b *shellOpt) {
 		b.args = args
 	}
 }
 
 func Stdin(stdin string) OptFn {
-	return func(b *execOpt) {
+	return func(b *shellOpt) {
 		b.stdin = stdin
 	}
 }
 
 func DiscardStdout() OptFn {
-	return func(b *execOpt) {
+	return func(b *shellOpt) {
 		b.noStdout = true
 	}
 }
 
 func DiscardStderr() OptFn {
-	return func(b *execOpt) {
+	return func(b *shellOpt) {
 		b.stderrDst = nil
 	}
 }
 
 func StoreStderr(dst *string) OptFn {
-	return func(b *execOpt) {
+	return func(b *shellOpt) {
 		b.stderrDst = dst
 	}
 }
 
-func Tap(f func(*exec.Cmd)) OptFn {
-	return func(b *execOpt) {
+func TapExecCmd(f func(*exec.Cmd)) OptFn {
+	return func(b *shellOpt) {
 		b.tapCmd = append(b.tapCmd, f)
 	}
 }
 
 func StoreExitCode(dst *int) OptFn {
-	return func(b *execOpt) {
+	return func(b *shellOpt) {
 		b.exitCodeDst = dst
 	}
 }
 
 func StoreError(dst *error) OptFn {
-	return func(b *execOpt) {
+	return func(b *shellOpt) {
 		b.errDst = dst
 	}
 }
 
-func Env(env map[string]string) OptFn {
-	return func(b *execOpt) {
-		for k, v := range env {
-			b.envs = append(b.envs, k+"="+v)
-		}
+func Env(envs ...string) OptFn {
+	return func(b *shellOpt) {
+		b.envs = append(b.envs, envs...)
+	}
+}
+
+func EnvMap(env map[string]string) OptFn {
+	var envs []string
+	for k, v := range env {
+		envs = append(envs, k+"="+v)
+	}
+	return Env(envs...)
+}
+
+func Context(ctx context.Context) OptFn {
+	return func(b *shellOpt) {
+		b.ctx = ctx
 	}
 }

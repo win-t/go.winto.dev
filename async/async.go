@@ -21,7 +21,7 @@ type Result[R any] struct {
 
 // similar with [Run] but returning some value instead of just error
 func Run2[R any](f func() (R, error)) <-chan Result[R] {
-	ch := make(chan Result[R])
+	ch := make(chan Result[R], 1)
 	go func() {
 		r, err := errors.Catch2(f)
 		ch <- Result[R]{r, err}
@@ -42,9 +42,13 @@ func (wg *WaitGroup) Go(f func()) {
 
 // ChanCtx return iterator function that will yield values in the ch or until ctx is done
 //
-// similar to following code, but can be canceled by the context
+// similarity can be seen in the following code, but the later can be canceled by the context
 //
 //	for value := range ch {
+//		// ...
+//	}
+//
+//	for value := range async.ChanCtx(ctx, ch) {
 //		// ...
 //	}
 func ChanCtx[T any](ctx context.Context, ch <-chan T) func(func(T) bool) {
