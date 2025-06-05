@@ -68,10 +68,10 @@ func shell(shell string, cmd string, opts ...OptFn) string {
 
 	err := proc.Run()
 	stdout := strings.TrimRight(outBuf.String(), "\r\n") // simulate shell command substitution behavior
+	if b.stderrDst != nil && b.stderrDst != &useStderrMarker {
+		*b.stderrDst = errBuf.String()
+	}
 	if err == nil {
-		if b.stderrDst != nil && b.stderrDst != &useStderrMarker {
-			*b.stderrDst = errBuf.String()
-		}
 		return stdout
 	}
 	if b.errDst != nil {
