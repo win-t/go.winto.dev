@@ -37,19 +37,19 @@ func (p *Pool) Close() {
 	p.group.Wait()
 }
 
-// PoolRun submits a function to the pool, analogous to [Run].
-func PoolRun(p *Pool, f func() error) <-chan error {
+// Run submits a function to the pool, analogous to [Run].
+func (p *Pool) Run(f func() error) <-chan error {
 	ch := make(chan error, 1)
 	p.input <- func() { ch <- errors.Catch(f) }
 	return ch
 }
 
-// PoolRun0 similar to [PoolRun], analogous to [Run0].
-func PoolRun0(p *Pool, f func()) {
+// Run0 similar to [Pool.Run], analogous to [Run0].
+func (p *Pool) Run0(f func()) {
 	p.input <- func() { errors.Catch0(f) }
 }
 
-// PoolRun2 similar to [PoolRun], analogous to [Run2].
+// PoolRun2 similar to [Pool.Run], analogous to [Run2].
 func PoolRun2[R any](p *Pool, f func() (R, error)) <-chan Result[R] {
 	ch := make(chan Result[R], 1)
 	p.input <- func() {
