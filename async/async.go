@@ -2,7 +2,6 @@ package async
 
 import (
 	"context"
-	"sync"
 
 	"go.winto.dev/errors"
 )
@@ -19,7 +18,7 @@ type Result[R any] struct {
 	Error  error
 }
 
-// similar with [Run] but returning some value instead of just error
+// Run2 similar with [Run] but returning some value instead of just error
 func Run2[R any](f func() (R, error)) <-chan Result[R] {
 	ch := make(chan Result[R], 1)
 	go func() {
@@ -29,15 +28,9 @@ func Run2[R any](f func() (R, error)) <-chan Result[R] {
 	return ch
 }
 
-type WaitGroup struct{ sync.WaitGroup }
-
-// Run f in new goroutine, and register it into the waitgroup
-func (wg *WaitGroup) Go(f func()) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		f()
-	}()
+// Run0 is similar to normal go keyword, but ignoring panic
+func Run0(f func()) {
+	go func() { errors.Catch0(f) }()
 }
 
 // ChanCtx return iterator function that will yield values in the ch or until ctx is done
