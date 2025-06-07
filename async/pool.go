@@ -37,19 +37,19 @@ func (p *Pool) Close() {
 	p.group.Wait()
 }
 
-// Run submits a function to the pool, analogous to [Run].
+// Run submits a function to the pool, and return chan to get the value returned by f or the panic value if f panic.
 func (p *Pool) Run(f func() error) <-chan error {
 	ch := make(chan error, 1)
 	p.input <- func() { ch <- errors.Catch(f) }
 	return ch
 }
 
-// Run0 similar to [Pool.Run], analogous to [Run0].
+// Run0 similar to [Pool.Run], but ignoring panic so that panic will not crash the program.
 func (p *Pool) Run0(f func()) {
 	p.input <- func() { errors.Catch0(f) }
 }
 
-// PoolRun2 similar to [Pool.Run], analogous to [Run2].
+// PoolRun2 similar to [Pool.Run] but also returning other value not just error.
 func PoolRun2[R any](p *Pool, f func() (R, error)) <-chan Result[R] {
 	ch := make(chan Result[R], 1)
 	p.input <- func() {
