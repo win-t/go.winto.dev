@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"syscall"
 
 	"go.winto.dev/async"
@@ -15,15 +14,38 @@ import (
 )
 
 var (
-	lock sync.Mutex
-
-	called bool
-	ctx    context.Context
-	sig    os.Signal
-	wg     async.WaitGroup
-
-	errLogger func(error)
+	mu          async.Mutex
+	called      bool
+	sig         os.Signal
+	wg          async.WaitGroup
+	tracePkgs   []string
+	errLogger   func(error)
+	waitOnPanic bool
 )
+
+// just a marker type to avoid Opt being called with outside this package
+type optParam struct{ a struct{} }
+
+type Opt func(optParam)
+
+func TracePkgs(pkgs ...string) Opt {
+	return func(optParam) {
+		tracePkgs = pkgs
+	}
+}
+
+func ErrorLogger(logger func(error)) Opt {
+	return func(optParam) {
+		errLogger = logger
+	}
+}
+
+// WaitOnPanic will wait for all goroutines registered to [WaitGroup] to finish
+func WaitOnPanic() Opt {
+	return func(optParam) {
+		waitOnPanic = true
+	}
+}
 
 // Execute f, this function call os.Exit() after f returned or panic
 //
@@ -31,100 +53,84 @@ var (
 // otherwise it will print stack trace and exit with code 1.
 //
 // Exec cannot be called twice.
-func Exec(f func(), tracePkg ...string) {
-	lock.Lock()
+func Exec(f func(ctx context.Context), opts ...Opt) {
+	mu.Lock()
 	if called {
-		lock.Unlock()
-		panic("cannot call mainpkg.Exec twice")
+		fmt.Fprintln(os.Stderr, "FATAL: mainpkg.Exec called twice")
+		os.Exit(1)
 	}
 
-	ecode := ExitCode(0)
-	dontWaitWg := false
+	for _, o := range opts {
+		o(optParam{})
+	}
+
+	ctx, done := context.WithCancel(context.Background())
+	gotPanic := false
+	exitCode := 0
+
 	defer func() {
-		lock.Unlock()
-		if !dontWaitWg {
+		if !gotPanic || waitOnPanic {
 			wg.Wait()
 		}
-		os.Exit(int(ecode))
+		os.Exit(exitCode)
 	}()
 
-	var cancelCtx context.CancelFunc
-	ctx, cancelCtx = context.WithCancel(context.Background())
-
-	var signalWg async.WaitGroup
-	defer signalWg.Wait()
-	signalWg.Go(func() {
+	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
-		defer signal.Stop(c)
 
 		select {
 		case <-ctx.Done():
+			signal.Stop(c)
 		case s := <-c:
-			lock.Lock()
-			sig = s
-			lock.Unlock()
-			cancelCtx()
+			signal.Stop(c)
+			mu.RunFast(func() { sig = s })
+			done()
 		}
-	})
+	}()
 
 	called = true
-
-	lock.Unlock()
-	err := errors.Catch0(f)
-	cancelCtx()
-	lock.Lock()
+	mu.Unlock()
+	err := errors.Catch0(func() { f(ctx) })
+	done()
+	mu.Lock()
 
 	if err == nil {
 		return
 	}
 
-	dontWaitWg = true
-	if newecode := ExitCode(0); errors.As(err, &newecode) {
-		ecode = newecode
+	gotPanic = true
+	if exitCodeErr := ExitCode(0); errors.As(err, &exitCodeErr) {
+		exitCode = int(exitCodeErr)
+		return
+	}
+
+	exitCode = 1
+	var msg string
+	if errLogger != nil {
+		errLogger(err)
 	} else {
-		ecode = 1
-		var msg string
-		if errLogger != nil {
-			errLogger(err)
+		if len(tracePkgs) > 0 {
+			msg = errors.FormatWithFilterPkgs(err, tracePkgs...)
 		} else {
-			if len(tracePkg) > 0 {
-				msg = errors.FormatWithFilterPkgs(err, tracePkg...)
-			} else {
-				msg = errors.FormatWithFilter(err, func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainpkg") })
-			}
-			fmt.Fprintln(os.Stderr, strings.TrimSuffix(msg, "\n"))
+			msg = errors.FormatWithFilter(err, func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainpkg") })
 		}
+		fmt.Fprintln(os.Stderr, strings.TrimSuffix(msg, "\n"))
 	}
 }
 
 type ExitCode int
 
 func (e ExitCode) Error() string {
-	return fmt.Sprintf("exit (%d)", int(e))
-}
-
-// this Context is cancelled when graceful shutdown is requested (SIGTERM or SIGINT)
-func Context() context.Context {
-	return ctx
+	return fmt.Sprintf("mainpkg.ExitCode (%d)", int(e))
 }
 
 // Return nil if graceful shutdown is not requested yet, otherwise return the signal
 func Interrupted() os.Signal {
-	lock.Lock()
-	ret := sig
-	lock.Unlock()
+	var ret os.Signal
+	mu.RunFast(func() { ret = sig })
 	return ret
 }
 
 // Return WaitGroup that will be waited after f passed to [Exec] return normally
-func WaitGroup() *async.WaitGroup {
-	return &wg
-}
-
-// SetErrLogger set the error logger, default is the error will be printed to os.Stderr
-func SetErrLogger(f func(error)) {
-	lock.Lock()
-	errLogger = f
-	lock.Unlock()
-}
+func WaitGroup() *async.WaitGroup { return &wg }

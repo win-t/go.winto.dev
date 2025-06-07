@@ -1,8 +1,8 @@
 module go.winto.dev/mainpkg
 
-go 1.23.2
+go 1.24.3
 
 require (
-	go.winto.dev/async v1.4.1
+	go.winto.dev/async v1.7.0
 	go.winto.dev/errors v1.4.1
 )
