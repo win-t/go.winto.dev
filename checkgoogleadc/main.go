@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,11 +13,9 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-func main() { mainpkg.Exec(realmain) }
+func main() { mainpkg.Exec(run) }
 
-func realmain() {
-	ctx := mainpkg.Context()
-
+func run(ctx context.Context) {
 	cred, err := google.FindDefaultCredentials(ctx, "email")
 	errors.Check(err)
 
