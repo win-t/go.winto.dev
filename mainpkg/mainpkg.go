@@ -14,13 +14,11 @@ import (
 )
 
 var (
-	mu          async.Mutex
-	called      bool
-	sig         os.Signal
-	wg          async.WaitGroup
-	tracePkgs   []string
-	errLogger   func(error)
-	waitOnPanic bool
+	mu        async.RWMutex
+	called    bool
+	sig       os.Signal
+	tracePkgs []string
+	errLogger func(error)
 )
 
 // just a marker type to avoid Opt being called with outside this package
@@ -37,13 +35,6 @@ func TracePkgs(pkgs ...string) Opt {
 func ErrorLogger(logger func(error)) Opt {
 	return func(optParam) {
 		errLogger = logger
-	}
-}
-
-// WaitOnPanic will wait for all goroutines registered to [WaitGroup] to finish
-func WaitOnPanic() Opt {
-	return func(optParam) {
-		waitOnPanic = true
 	}
 }
 
@@ -65,15 +56,9 @@ func Exec(f func(ctx context.Context), opts ...Opt) {
 	}
 
 	ctx, done := context.WithCancel(context.Background())
-	gotPanic := false
-	exitCode := 0
 
-	defer func() {
-		if !gotPanic || waitOnPanic {
-			wg.Wait()
-		}
-		os.Exit(exitCode)
-	}()
+	exitCode := 0
+	defer func() { os.Exit(exitCode) }()
 
 	go func() {
 		c := make(chan os.Signal, 1)
@@ -99,7 +84,6 @@ func Exec(f func(ctx context.Context), opts ...Opt) {
 		return
 	}
 
-	gotPanic = true
 	if exitCodeErr := ExitCode(0); errors.As(err, &exitCodeErr) {
 		exitCode = int(exitCodeErr)
 		return
@@ -128,9 +112,6 @@ func (e ExitCode) Error() string {
 // Return nil if graceful shutdown is not requested yet, otherwise return the signal
 func Interrupted() os.Signal {
 	var ret os.Signal
-	mu.RunNoPanic(func() { ret = sig })
+	mu.RunReadNoPanic(func() { ret = sig })
 	return ret
 }
-
-// Return WaitGroup that will be waited after f passed to [Exec] return normally
-func WaitGroup() *async.WaitGroup { return &wg }
