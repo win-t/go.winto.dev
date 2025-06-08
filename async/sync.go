@@ -19,10 +19,10 @@ func (s Sem) Run(f func()) {
 	f()
 }
 
-// Smilar to [Sem.Run] but assuming f will not panic.
+// RunNoPanic is similar to [Sem.Run] but assuming f will not panic.
 //
 // if f panic, the semapore count will not be restored.
-func (s Sem) RunFast(f func()) {
+func (s Sem) RunNoPanic(f func()) {
 	s.ch <- struct{}{}
 	f()
 	<-s.ch
@@ -37,10 +37,10 @@ func (m *Mutex) Run(f func()) {
 	f()
 }
 
-// RunFast is similar to [Mutex.Run] but assuming f will not panic.
+// RunNoPanic is similar to [Mutex.Run] but assuming f will not panic.
 //
 // if f panic, the mutex will not be unlocked.
-func (m *Mutex) RunFast(f func()) {
+func (m *Mutex) RunNoPanic(f func()) {
 	m.Lock()
 	f()
 	m.Unlock()
@@ -55,26 +55,26 @@ func (m *RWMutex) Run(f func()) {
 	f()
 }
 
-// RunFast is similar to [RWMutex.Run] but assuming f will not panic.
+// RunNoPanic is similar to [RWMutex.Run] but assuming f will not panic.
 //
 // if f panic, the mutex will not be unlocked.
-func (m *RWMutex) RunFast(f func()) {
+func (m *RWMutex) RunNoPanic(f func()) {
 	m.Lock()
 	f()
 	m.Unlock()
 }
 
-// Run runs a function with mutex control for read-only data.
+// RunRead runs a function with mutex control for read-only data.
 func (m *RWMutex) RunRead(f func()) {
 	m.RLock()
 	defer m.RUnlock()
 	f()
 }
 
-// RunFast is similar to [RWMutex.RunRead] but assuming f will not panic.
+// RunReadNoPanic is similar to [RWMutex.RunRead] but assuming f will not panic.
 //
 // if f panic, the mutex will not be unlocked.
-func (m *RWMutex) RunReadFast(f func()) {
+func (m *RWMutex) RunReadNoPanic(f func()) {
 	m.RLock()
 	f()
 	m.RUnlock()
@@ -82,7 +82,7 @@ func (m *RWMutex) RunReadFast(f func()) {
 
 type WaitGroup struct{ sync.WaitGroup }
 
-// Run is similar to normal go keyword, but it registers to the waitgroup.
+// Go is similar to normal go keyword, but it registers to the waitgroup.
 func (wg *WaitGroup) Go(f func()) {
 	wg.Add(1)
 	go func() {

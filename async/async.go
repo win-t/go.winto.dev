@@ -30,23 +30,3 @@ func Run2[R any](f func() (R, error)) <-chan Result[R] {
 	}()
 	return ch
 }
-
-type Cache[T any] struct {
-	C        <-chan T
-	HasValue bool
-	Value    T
-}
-
-func NewCache[T any](ch <-chan T) *Cache[T] {
-	return &Cache[T]{C: ch}
-}
-
-// Get returns the cached value if it exists, otherwise it waits for the first value from the channel and caches it.
-func (c *Cache[T]) Get() T {
-	if c.HasValue {
-		return c.Value
-	}
-	c.Value = <-c.C
-	c.HasValue = true
-	return c.Value
-}

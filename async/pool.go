@@ -17,7 +17,7 @@ type Pool struct {
 func NewPool(ctx context.Context, size int) *Pool {
 	var group WaitGroup
 	ctx, done := context.WithCancel(ctx)
-	input := make(chan func(), size)
+	input := make(chan func(), 64*size)
 	for range size {
 		group.Go(func() {
 			for f := range ChanCtx(ctx, input) {

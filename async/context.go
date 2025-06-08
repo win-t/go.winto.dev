@@ -2,6 +2,7 @@ package async
 
 import (
 	"context"
+	"iter"
 )
 
 // ChanCtx return iterator function that will yield values in the ch or until ctx is done.
@@ -15,7 +16,7 @@ import (
 //	for value := range async.ChanCtx(ctx, ch) {
 //		// ...
 //	}
-func ChanCtx[T any](ctx context.Context, ch <-chan T) func(func(T) bool) {
+func ChanCtx[T any](ctx context.Context, ch <-chan T) iter.Seq[T] {
 	return func(yield func(T) bool) {
 		for {
 			select {
