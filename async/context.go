@@ -35,11 +35,10 @@ func ChanCtx[T any](ctx context.Context, ch <-chan T) iter.Seq[T] {
 }
 
 // RecvCtx waits for a value from the channel or until the context is done.
-func RecvCtx[T any](ctx context.Context, c <-chan T) (T, bool) {
+func RecvCtx[T any](ctx context.Context, c <-chan T) (value T, ok bool) {
 	select {
 	case <-ctx.Done():
-		var zero T
-		return zero, false
+		return value, false
 	case value, ok := <-c:
 		return value, ok
 	}

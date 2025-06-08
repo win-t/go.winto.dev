@@ -21,7 +21,7 @@ func (s Sem) Run(f func()) {
 
 // RunNoPanic is similar to [Sem.Run] but assuming f will not panic.
 //
-// if f panic, the semapore count will not be restored.
+// if f panic, the semaphore count will not be restored.
 func (s Sem) RunNoPanic(f func()) {
 	s.ch <- struct{}{}
 	f()

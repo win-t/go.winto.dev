@@ -27,7 +27,7 @@ func NewPool(ctx context.Context, size int) *Pool {
 	}
 
 	pool := &Pool{&group, done, input}
-	runtime.SetFinalizer(pool, (*Pool).Close)
+	runtime.AddCleanup(pool, func(struct{}) { done() }, struct{}{})
 	return pool
 }
 
