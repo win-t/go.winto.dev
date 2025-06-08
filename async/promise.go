@@ -5,20 +5,20 @@ import (
 	"sync/atomic"
 )
 
-type promiseInner[T any] struct {
+type promiseData[T any] struct {
 	lockCh chan struct{}
 	dataCh <-chan T
 }
 
 type Promise[T any] struct {
-	inner atomic.Pointer[promiseInner[T]]
-	value T
+	innerData atomic.Pointer[promiseData[T]] // nil here means that the promise is already fulfilled
+	value     T
 }
 
 // Create a promise for the first value that we got from the cannel.
 func NewPromise[T any](ch <-chan T) *Promise[T] {
 	var p Promise[T]
-	p.inner.Store(&promiseInner[T]{
+	p.innerData.Store(&promiseData[T]{
 		lockCh: make(chan struct{}, 1),
 		dataCh: ch,
 	})
@@ -39,7 +39,7 @@ func (c *Promise[T]) Get() T {
 // Similar to [Promise.Get] but with context cancelation support.
 func (p *Promise[T]) GetCtx(ctx context.Context) (T, error) {
 	// fast path
-	state := p.inner.Load()
+	state := p.innerData.Load()
 	if state == nil {
 		return p.value, nil
 	}
@@ -58,7 +58,7 @@ func (p *Promise[T]) slowGet(ctx context.Context, lockCh chan struct{}) (ret T, 
 	}
 
 	// check again if the promise is already fulfilled by other goroutine after we acquired the lock
-	state := p.inner.Load()
+	state := p.innerData.Load()
 	if state == nil {
 		return p.value, nil
 	}
@@ -67,7 +67,7 @@ func (p *Promise[T]) slowGet(ctx context.Context, lockCh chan struct{}) (ret T, 
 	case <-ctx.Done():
 		return ret, ctx.Err()
 	case p.value = <-state.dataCh:
-		p.inner.Store(nil)
+		p.innerData.Store(nil)
 		return p.value, nil
 	}
 }
