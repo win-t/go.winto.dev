@@ -1,4 +1,4 @@
-go.winto.dev/async v1.7.0 h1:o4E2OJpYGWcM2HIM8wpL/jdjcYbQq+uFZrqTo9KLmPQ=
-go.winto.dev/async v1.7.0/go.mod h1:ughdkBrOqhIY39Um6evi9wrw8UXjKWn9dra5Qd1vMFg=
+go.winto.dev/async v1.8.0 h1:iTrHOz4pgFpYA8s0YTJimK31Spoawt9y7acZbNNhHuI=
+go.winto.dev/async v1.8.0/go.mod h1:ughdkBrOqhIY39Um6evi9wrw8UXjKWn9dra5Qd1vMFg=
 go.winto.dev/errors v1.4.1 h1:lTAtdhqPP78CH3uxsnlsd2E4fR9UGk2E+caJBlPEmxM=
 go.winto.dev/errors v1.4.1/go.mod h1:x6lidXH4baa0nCXMkXDBzeiPI5s/xiZKYhHCrzleNzc=

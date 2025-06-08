@@ -24,7 +24,7 @@ var (
 )
 
 // just a marker type to avoid Opt being called with outside this package
-type optParam struct{ a struct{} }
+type optParam struct{ _ struct{} }
 
 type Opt func(optParam)
 
@@ -84,7 +84,7 @@ func Exec(f func(ctx context.Context), opts ...Opt) {
 			signal.Stop(c)
 		case s := <-c:
 			signal.Stop(c)
-			mu.RunFast(func() { sig = s })
+			mu.RunNoPanic(func() { sig = s })
 			done()
 		}
 	}()
@@ -128,7 +128,7 @@ func (e ExitCode) Error() string {
 // Return nil if graceful shutdown is not requested yet, otherwise return the signal
 func Interrupted() os.Signal {
 	var ret os.Signal
-	mu.RunFast(func() { ret = sig })
+	mu.RunNoPanic(func() { ret = sig })
 	return ret
 }
 
