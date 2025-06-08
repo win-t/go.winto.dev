@@ -17,6 +17,7 @@ type shellOpt struct {
 	exitCodeDst *int
 	errDst      *error
 	ctx         context.Context
+	panicOnErr  bool
 }
 
 func Args(args ...string) OptFn {
@@ -84,5 +85,11 @@ func EnvMap(env map[string]string) OptFn {
 func Context(ctx context.Context) OptFn {
 	return func(b *shellOpt) {
 		b.ctx = ctx
+	}
+}
+
+func PanicOnErr() OptFn {
+	return func(b *shellOpt) {
+		b.panicOnErr = true
 	}
 }

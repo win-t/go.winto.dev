@@ -90,3 +90,14 @@ func TestContext(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestPanicOnErr(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal()
+		}
+	}()
+
+	Sh(`exit 10`, PanicOnErr())
+	t.Fatal()
+}

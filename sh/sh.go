@@ -90,6 +90,10 @@ func shell(shell string, cmd string, opts ...OptFn) string {
 		}
 	}
 
+	if b.panicOnErr {
+		panic(err)
+	}
+
 	return stdout
 }
 
