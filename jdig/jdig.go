@@ -1,7 +1,9 @@
 // Package jdig provides a simple way to deal with JSON but in ineffecent way.
 package jdig
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type IError = error
 
@@ -9,9 +11,18 @@ type Error struct{ IError }
 
 func (e Error) Unwrap() error { return e.IError }
 
-func Unmarshal(data string) any {
+func Unmarshal(data any) any {
+	var input []byte
+	switch v := data.(type) {
+	case string:
+		input = []byte(v)
+	case []byte:
+		input = v
+	default:
+		panic("jdig: input must be string or []byte")
+	}
 	var v any
-	err := json.Unmarshal([]byte(data), &v)
+	err := json.Unmarshal(input, &v)
 	if err != nil {
 		panic(Error{IError: err})
 	}
