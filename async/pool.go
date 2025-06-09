@@ -44,11 +44,6 @@ func (p *Pool) Run(f func() error) <-chan error {
 	return ch
 }
 
-// Run0 similar to [Pool.Run], but ignoring panic so that panic will not crash the program.
-func (p *Pool) Run0(f func()) {
-	p.input <- func() { errors.Catch0(f) }
-}
-
 // PoolRun2 similar to [Pool.Run] but also returning other value not just error.
 func PoolRun2[R any](p *Pool, f func() (R, error)) <-chan Result[R] {
 	ch := make(chan Result[R], 1)

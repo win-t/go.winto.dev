@@ -91,11 +91,6 @@ func (wg *WaitGroup) Go(f func()) {
 	}()
 }
 
-// Run0 similar to [WaitGroup.Go], but ignoring panic so that panic will not crash the program.
-func (wg *WaitGroup) Run0(f func()) {
-	wg.Go(func() { errors.Catch0(f) })
-}
-
 // Run f in new goroutine, and register it into the waitgroup, and return chan to get the value returned by f or the panic value if f panic.
 func (wg *WaitGroup) Run(f func() error) <-chan error {
 	ch := make(chan error, 1)

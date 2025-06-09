@@ -4,11 +4,6 @@ import (
 	"go.winto.dev/errors"
 )
 
-// Run0 is similar to normal go keyword, but ignoring panic so that panic will not crash the program.
-func Run0(f func()) {
-	go func() { errors.Catch0(f) }()
-}
-
 // Run the f function in new go routine, and return chan to get the value returned by f or the panic value if f panic.
 func Run(f func() error) <-chan error {
 	ch := make(chan error, 1)
