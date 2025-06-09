@@ -7,14 +7,14 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 
-	"go.winto.dev/async"
 	"go.winto.dev/errors"
 )
 
 var (
-	mu        async.RWMutex
+	mu        sync.RWMutex
 	called    bool
 	sig       os.Signal
 	tracePkgs []string
@@ -69,7 +69,9 @@ func Exec(f func(ctx context.Context), opts ...Opt) {
 			signal.Stop(c)
 		case s := <-c:
 			signal.Stop(c)
-			mu.RunNoPanic(func() { sig = s })
+			mu.Lock()
+			sig = s
+			mu.Unlock()
 			done()
 		}
 	}()
@@ -111,7 +113,8 @@ func (e ExitCode) Error() string {
 
 // Return nil if graceful shutdown is not requested yet, otherwise return the signal
 func Interrupted() os.Signal {
-	var ret os.Signal
-	mu.RunReadNoPanic(func() { ret = sig })
+	mu.RLock()
+	ret := sig
+	mu.RUnlock()
 	return ret
 }
