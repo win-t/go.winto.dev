@@ -2,12 +2,10 @@ cloud.google.com/go/compute/metadata v0.7.0 h1:PBWF+iiAerVNe8UCHxdOt6eHLVc3ydFeO
 cloud.google.com/go/compute/metadata v0.7.0/go.mod h1:j5MvL9PprKL39t166CoB1uVHfQMs4tFQZZcKwksXUjo=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
-go.winto.dev/async v1.7.0 h1:o4E2OJpYGWcM2HIM8wpL/jdjcYbQq+uFZrqTo9KLmPQ=
-go.winto.dev/async v1.7.0/go.mod h1:ughdkBrOqhIY39Um6evi9wrw8UXjKWn9dra5Qd1vMFg=
-go.winto.dev/errors v1.4.1 h1:lTAtdhqPP78CH3uxsnlsd2E4fR9UGk2E+caJBlPEmxM=
-go.winto.dev/errors v1.4.1/go.mod h1:x6lidXH4baa0nCXMkXDBzeiPI5s/xiZKYhHCrzleNzc=
-go.winto.dev/mainpkg v1.5.0 h1:nqNKalYVDckWJjJ1cIBv1QlCmiSSmE1Wr32NKGhsffA=
-go.winto.dev/mainpkg v1.5.0/go.mod h1:5H74UP2co2d0Zc6GQlcQfLuxmqhjzdjfiK8u8qqkx4M=
+go.winto.dev/errors v1.6.0 h1:SG0A01WEakmwZQJKOhaB13M4dX+8st9FXuuXMpAR60o=
+go.winto.dev/errors v1.6.0/go.mod h1:x6lidXH4baa0nCXMkXDBzeiPI5s/xiZKYhHCrzleNzc=
+go.winto.dev/mainpkg v1.7.2 h1:jbKQbohcz8qHx/CUUxGntw1NKwk3DqkgrnEzyHUxK9s=
+go.winto.dev/mainpkg v1.7.2/go.mod h1:thpHHxwNd5b1v7ssaultIDBqKHbuOynuv2PRgBB9lAc=
 golang.org/x/oauth2 v0.30.0 h1:dnDm7JmhM45NNpd8FDDeLhK6FwqbOf4MLCM9zb1BOHI=
 golang.org/x/oauth2 v0.30.0/go.mod h1:B++QgG3ZKulg6sRPGD/mqlHQs5rB3Ml9erfeDY7xKlU=
 golang.org/x/sys v0.33.0 h1:q3i8TbbEz+JRD9ywIRlyRAQbM0qF7hu24q3teo2hbuw=
