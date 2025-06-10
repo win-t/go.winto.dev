@@ -72,7 +72,7 @@ func Trace2[Ret any](ret Ret, err error) (Ret, error) {
 //
 // return nil if err doesn't have stack trace
 func StackTrace(err error) []Location {
-	if traced, ok := findTracedErr(err).(stacktracer); ok {
+	if traced := findTracedErr(err); traced != nil {
 		return traced.StackTrace()
 	}
 	return nil
