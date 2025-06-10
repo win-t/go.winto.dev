@@ -31,7 +31,7 @@ func Unwrap(err error) error {
 //
 // [stdlib errors.New]: https://pkg.go.dev/errors/#New
 func New(text string) error {
-	return &TracedErr{stderrors.New(text), getLocs(1)}
+	return &traced[error]{getLocs(1), stderrors.New(text)}
 }
 
 // see [stdlib fmt.Errorf].
@@ -40,7 +40,11 @@ func New(text string) error {
 //
 // [stdlib fmt.Errorf]: https://pkg.go.dev/fmt/#Errorf
 func Errorf(format string, a ...any) error {
-	return &TracedErr{fmt.Errorf(format, a...), getLocs(1)}
+	err := fmt.Errorf(format, a...)
+	if _, ok := err.(unwrapslice); ok {
+		return err
+	}
+	return &traced[error]{getLocs(1), err}
 }
 
 // see [stdlib errors.Join].
@@ -67,11 +71,9 @@ func Expect(fact bool, message string) {
 		if message == "" {
 			message = "expectation failed"
 		}
-		panic(&TracedErr{stderrors.New(message), getLocs(1)})
+		panic(&traced[error]{getLocs(1), stderrors.New(message)})
 	}
 }
-
-type unwrapslice interface{ Unwrap() []error }
 
 // see [stdlib errors.Unwrap], but for unwraping slices.
 //
@@ -79,11 +81,6 @@ type unwrapslice interface{ Unwrap() []error }
 func UnwrapSlice(err error) []error {
 	if u, ok := err.(unwrapslice); ok {
 		return u.Unwrap()
-	}
-	if err, ok := err.(*TracedErr); ok {
-		if u, ok := err.Original.(unwrapslice); ok {
-			return u.Unwrap()
-		}
 	}
 	return nil
 }

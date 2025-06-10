@@ -125,3 +125,23 @@ func TestDeepTracedErrro(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestTraceShouldNotWrapUnwrapSlice(t *testing.T) {
+	err := errors.Join(errors.New("test1"), errors.New("test2"))
+	traced := errors.Trace(err)
+	if err != traced {
+		t.Errorf("errors.Trace should not wrap unwrapslice")
+	}
+	if len(errors.StackTrace(traced)) != 0 {
+		t.Errorf("errors.Trace should not add stack trace to unwrapslice")
+	}
+
+	err = errors.Errorf("multierr: %w %w", errors.New("test1"), errors.New("test2"))
+	traced = errors.Trace(err)
+	if err != traced {
+		t.Errorf("errors.Trace should not wrap unwrapslice")
+	}
+	if len(errors.StackTrace(traced)) != 0 {
+		t.Errorf("errors.Trace should not add stack trace to unwrapslice")
+	}
+}

@@ -12,6 +12,10 @@ func makeOneLine(str string) string {
 	return str
 }
 
+type unwrap interface {
+	Unwrap() error
+}
+
 // like Format, but you can filter what location to include in the formated string
 func FormatWithFilter(err error, filter func(Location) bool) string {
 	var sb strings.Builder
@@ -28,9 +32,9 @@ func FormatWithFilter(err error, filter func(Location) bool) string {
 		sb.WriteString(makeOneLine(err.Error()))
 		sb.WriteByte('\n')
 
-		if traced, ok := err.(*TracedErr); ok {
+		if traced, ok := err.(stacktracer); ok {
 			firstErrTrace := true
-			for _, l := range traced.Trace {
+			for _, l := range traced.StackTrace() {
 				if filter != nil && !filter(l) {
 					continue
 				}
@@ -42,7 +46,10 @@ func FormatWithFilter(err error, filter func(Location) bool) string {
 				sb.WriteString(l.String())
 				sb.WriteByte('\n')
 			}
-			return Unwrap(traced.Original)
+			if wrapped, ok := traced.(unwrap); ok {
+				return Unwrap(wrapped.Unwrap())
+			}
+			return Unwrap(err)
 		} else {
 			return Unwrap(err)
 		}

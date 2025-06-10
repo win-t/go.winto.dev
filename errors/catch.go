@@ -1,7 +1,5 @@
 package errors
 
-import "fmt"
-
 // run f, if f panic or returned, that value will be returned by this function.
 func Catch(f func() error) (err error) {
 	defer func() {
@@ -12,7 +10,7 @@ func Catch(f func() error) (err error) {
 
 		recErr, ok := rec.(error)
 		if !ok {
-			err = &TracedErr{fmt.Errorf("%v", rec), getLocs(1)}
+			err = &traced[any]{getLocs(1), rec}
 			return
 		}
 

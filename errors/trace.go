@@ -1,22 +1,38 @@
 package errors
 
-// TracedErr is an error wrapper that have stack trace
-type TracedErr struct {
-	Original error
-	Trace    []Location
+import "fmt"
+
+type traced[E any] struct {
+	locs []Location
+	e    E
 }
 
-func (e *TracedErr) Error() string { return e.Original.Error() }
-func (e *TracedErr) Unwrap() error { return e.Original }
+type unwrapslice interface {
+	Unwrap() []error
+}
+type stacktracer interface {
+	StackTrace() []Location
+}
+
+func (e *traced[E]) StackTrace() []Location { return e.locs }
+func (e *traced[E]) Unwrap() E              { return e.e }
+
+func (e *traced[E]) Error() string {
+	if err, ok := any(e.e).(error); ok {
+		return err.Error()
+	}
+	return fmt.Sprintf("any error: %v", e.e)
+}
 
 //go:noinline
-func findTracedErr(err error) error {
+func findTracedErr(err error) stacktracer {
 	for err != nil {
-		switch err := err.(type) {
-		case *TracedErr:
-			return err
-		case unwrapslice: // don't deep dive into multi error
-			return nil
+		switch v := err.(type) {
+		case stacktracer:
+			return v
+		case unwrapslice:
+			// assume unwrapslice is traced but no without specific location, as individual errors might not have locations
+			return &traced[error]{nil, err}
 		}
 		err = Unwrap(err)
 	}
@@ -28,7 +44,7 @@ func traceIfNeeded(err error, skip int) error {
 		return err
 	}
 
-	return &TracedErr{err, getLocs(skip + 1)}
+	return &traced[error]{getLocs(skip + 1), err}
 }
 
 // Trace will return new error that have stack trace
@@ -56,8 +72,8 @@ func Trace2[Ret any](ret Ret, err error) (Ret, error) {
 //
 // return nil if err doesn't have stack trace
 func StackTrace(err error) []Location {
-	if err, ok := findTracedErr(err).(*TracedErr); ok {
-		return err.Trace
+	if traced, ok := findTracedErr(err).(stacktracer); ok {
+		return traced.StackTrace()
 	}
 	return nil
 }
