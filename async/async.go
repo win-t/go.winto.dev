@@ -1,6 +1,9 @@
 package async
 
 import (
+	"context"
+	"sync/atomic"
+
 	"go.winto.dev/errors"
 )
 
@@ -24,4 +27,57 @@ func Run2[R any](f func() (R, error)) <-chan Result[R] {
 		ch <- Result[R]{r, err}
 	}()
 	return ch
+}
+
+// Run f in new goroutine, return a function that can be used concurrently to get the result, if f panic, the error value pass to panic will be returned.
+func Promise[R any](f func() (R, error)) func(context.Context) (R, error) {
+	type wait struct {
+		data <-chan Result[R]
+		lock chan struct{}
+	}
+
+	var data Result[R]
+	var waitPtr atomic.Pointer[wait]
+	{
+		w := &wait{
+			data: Run2(f),
+			lock: make(chan struct{}, 1),
+		}
+		w.lock <- struct{}{}
+		waitPtr.Store(w)
+	}
+
+	return func(ctx context.Context) (ret R, err error) {
+		// fast path check
+		wait := waitPtr.Load()
+		if wait == nil {
+			return data.Result, data.Error
+		}
+
+		// acquire lock
+		select {
+		case <-ctx.Done():
+			return ret, ctx.Err()
+		case <-wait.lock:
+		}
+
+		// check again
+		wait = waitPtr.Load()
+		if wait == nil {
+			return data.Result, data.Error
+		}
+
+		// retrieve data
+		select {
+		case <-ctx.Done():
+			// this goroutine failed, put back the lock
+			wait.lock <- struct{}{}
+			return ret, ctx.Err()
+		case data = <-wait.data:
+			// wake up all waiting goroutine after setting waitPtr to nil to indicate the promise is fulfilled
+			waitPtr.Store(nil)
+			close(wait.lock)
+			return data.Result, data.Error
+		}
+	}
 }
