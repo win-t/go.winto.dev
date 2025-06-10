@@ -17,7 +17,6 @@ var (
 	mu        sync.RWMutex
 	called    bool
 	sig       os.Signal
-	tracePkgs []string
 	errLogger func(error)
 )
 
@@ -25,12 +24,6 @@ var (
 type optParam struct{ _ struct{} }
 
 type Opt func(optParam)
-
-func TracePkgs(pkgs ...string) Opt {
-	return func(optParam) {
-		tracePkgs = pkgs
-	}
-}
 
 func ErrorLogger(logger func(error)) Opt {
 	return func(optParam) {
@@ -92,16 +85,10 @@ func Exec(f func(ctx context.Context), opts ...Opt) {
 	}
 
 	exitCode = 1
-	var msg string
 	if errLogger != nil {
 		errLogger(err)
 	} else {
-		if len(tracePkgs) > 0 {
-			msg = errors.FormatWithFilterPkgs(err, tracePkgs...)
-		} else {
-			msg = errors.FormatWithFilter(err, func(l errors.Location) bool { return !l.InPkg("go.winto.dev/mainpkg") })
-		}
-		fmt.Fprintln(os.Stderr, strings.TrimSuffix(msg, "\n"))
+		fmt.Fprintln(os.Stderr, strings.TrimSuffix(errors.Format(err), "\n"))
 	}
 }
 
