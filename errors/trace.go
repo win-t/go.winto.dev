@@ -31,7 +31,8 @@ func findTracedErr(err error) stacktracer {
 		case stacktracer:
 			return v
 		case unwrapslice:
-			// assume unwrapslice is traced but no without specific location, as individual errors might not have locations
+			// assume unwrapslice is traced but with no specific location, as individual errors might already have locations
+			// user should check the trace for each item in the error slices instead
 			return &traced[error]{nil, err}
 		}
 		err = Unwrap(err)
