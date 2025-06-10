@@ -25,23 +25,32 @@ func (e *traced[E]) Error() string {
 }
 
 //go:noinline
-func findTracedErr(err error) stacktracer {
+func findTracedErr(err error, digErrSlices bool) stacktracer {
 	for err != nil {
 		switch v := err.(type) {
 		case stacktracer:
 			return v
-		case unwrapslice:
-			// assume unwrapslice is traced but with no specific location, as individual errors might already have locations
-			// user should check the trace for each item in the error slices instead
-			return &traced[error]{nil, err}
+		case unwrapslice: // see comment on traceIfNeeded function
+			if !digErrSlices {
+				return &traced[error]{nil, err}
+			}
+			slices := v.Unwrap()
+			if len(slices) == 0 {
+				return nil
+			}
+			err = slices[0]
+		default:
+			err = Unwrap(err)
 		}
-		err = Unwrap(err)
+
 	}
 	return nil
 }
 
 func traceIfNeeded(err error, skip int) error {
-	if findTracedErr(err) != nil {
+	// assuming unwrapslice as already traced but without locations
+	// as the individual errors in the slice might have locations
+	if findTracedErr(err, false) != nil {
 		return err
 	}
 
@@ -73,7 +82,7 @@ func Trace2[Ret any](ret Ret, err error) (Ret, error) {
 //
 // return nil if err doesn't have stack trace
 func StackTrace(err error) []Location {
-	if traced := findTracedErr(err); traced != nil {
+	if traced := findTracedErr(err, true); traced != nil {
 		return traced.StackTrace()
 	}
 	return nil

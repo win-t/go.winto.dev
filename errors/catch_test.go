@@ -78,9 +78,9 @@ func TestCatchMultipleReturn(t *testing.T) {
 
 func TestCatchMultiErr(t *testing.T) {
 	err := errors.Catch(func() error {
-		a := errors.New("a")
 		b := errors.New("b")
 		funcAA(func() {
+			a := errors.New("a")
 			panic(errors.Join(a, b))
 		})
 		return nil

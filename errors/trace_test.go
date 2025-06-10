@@ -126,22 +126,26 @@ func TestDeepTracedErrro(t *testing.T) {
 	}
 }
 
-func TestTraceShouldNotWrapUnwrapSlice(t *testing.T) {
-	err := errors.Join(errors.New("test1"), errors.New("test2"))
+func TestStackTraceOutputShouldUseFirstOnUnwrapSlice(t *testing.T) {
+	var errAa error
+	funcAA(func() { errAa = errors.New("test1") })
+	var errBb error
+	funcBB(func() { errBb = errors.New("test2") })
+	err := errors.Join(errAa, errBb)
 	traced := errors.Trace(err)
 	if err != traced {
 		t.Errorf("errors.Trace should not wrap unwrapslice")
 	}
-	if len(errors.StackTrace(traced)) != 0 {
-		t.Errorf("errors.Trace should not add stack trace to unwrapslice")
+	if !haveTrace(errors.StackTrace(traced), "funcAA") {
+		t.Errorf("errors.StackTrace should use contains funcAA")
 	}
 
-	err = errors.Errorf("multierr: %w %w", errors.New("test1"), errors.New("test2"))
+	err = errors.Errorf("multierr: %w %w", errAa, errBb)
 	traced = errors.Trace(err)
 	if err != traced {
 		t.Errorf("errors.Trace should not wrap unwrapslice")
 	}
-	if len(errors.StackTrace(traced)) != 0 {
-		t.Errorf("errors.Trace should not add stack trace to unwrapslice")
+	if !haveTrace(errors.StackTrace(traced), "funcAA") {
+		t.Errorf("errors.StackTrace should use contains funcAA")
 	}
 }
