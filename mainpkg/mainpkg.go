@@ -38,7 +38,7 @@ func ErrorLogger(logger func(error)) Opt {
 	}
 }
 
-// Execute f, this function call os.Exit() after f returned or panic
+// Execute f with ctx that will be cancelled by SIGINT or SIGTERM, this function call os.Exit() after f returned or panic
 //
 // if the panic value throw by f is [ExitCode], it will be used as exit code,
 // otherwise it will print stack trace and exit with code 1.
@@ -112,6 +112,8 @@ func (e ExitCode) Error() string {
 }
 
 // Return nil if graceful shutdown is not requested yet, otherwise return the signal
+//
+// possible signals are SIGINT or SIGTERM
 func Interrupted() os.Signal {
 	mu.RLock()
 	ret := sig

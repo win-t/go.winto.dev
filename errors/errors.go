@@ -36,8 +36,6 @@ func New(text string) error {
 
 // see [stdlib fmt.Errorf].
 //
-// Note: the returned error doesn't implement Unwrap() []error method like [stdlib fmt.Errorf] does, but you can use [Unwrap] it first to get the underlying fmt error.
-//
 // [stdlib fmt.Errorf]: https://pkg.go.dev/fmt/#Errorf
 func Errorf(format string, a ...any) error {
 	err := fmt.Errorf(format, a...)
