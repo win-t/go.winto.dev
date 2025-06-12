@@ -34,8 +34,11 @@ func run() {
 	iss := os.Getenv("ISSUER")
 	errors.Expect(iss != "", "ISSUER is required")
 
-	key := os.Getenv("KEY")
-	errors.Expect(key != "", "KEY is required")
+	key := os.Getenv("KEYFILE")
+	if key == "" {
+		key = os.Getenv("KEY")
+	}
+	errors.Expect(key != "", "KEYFILE is required")
 
 	adminPass := os.Getenv("ADMIN_PASS")
 	errors.Expect(adminPass != "", "ADMIN_PASS is required")
