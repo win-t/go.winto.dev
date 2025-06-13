@@ -18,6 +18,7 @@ type shellOpt struct {
 	errDst      *error
 	ctx         context.Context
 	panicOnErr  bool
+	useStdout   bool
 }
 
 func Args(args ...string) OptFn {
@@ -91,5 +92,11 @@ func Context(ctx context.Context) OptFn {
 func PanicOnErr() OptFn {
 	return func(b *shellOpt) {
 		b.panicOnErr = true
+	}
+}
+
+func UseStdout() OptFn {
+	return func(b *shellOpt) {
+		b.useStdout = true
 	}
 }

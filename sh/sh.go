@@ -53,7 +53,11 @@ func shell(shell string, cmd string, opts ...OptFn) string {
 		proc.Stdin = strings.NewReader(b.stdin)
 	}
 	if !b.noStdout {
-		proc.Stdout = &outBuf
+		if b.useStdout {
+			proc.Stdout = os.Stdout
+		} else {
+			proc.Stdout = &outBuf
+		}
 	}
 	if b.stderrDst != nil {
 		if b.stderrDst == &useStderrMarker {
