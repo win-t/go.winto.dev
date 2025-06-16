@@ -17,7 +17,7 @@ type unwrap interface {
 }
 
 // like Format, but you can filter what location to include in the formated string
-func FormatWithFilter(err error, filter func(Location) bool) string {
+func FormatWithFilter(err error, include func(Location) bool) string {
 	var sb strings.Builder
 
 	firstError := true
@@ -35,7 +35,7 @@ func FormatWithFilter(err error, filter func(Location) bool) string {
 		if traced, ok := err.(stacktracer); ok {
 			firstErrTrace := true
 			for _, l := range traced.StackTrace() {
-				if filter != nil && !filter(l) {
+				if include != nil && !include(l) {
 					continue
 				}
 				if firstErrTrace {

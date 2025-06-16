@@ -102,20 +102,6 @@ func TestErrorsAs(t *testing.T) {
 	}
 }
 
-func TestTraceMultipleReturn(t *testing.T) {
-	a, err := errors.Trace2(10, nil)
-	if a != 10 || err != nil {
-		t.FailNow()
-	}
-
-	orierr := errors.New("orierr")
-
-	a, err = errors.Trace2(10, orierr)
-	if a != 10 || !errors.Is(err, orierr) {
-		t.FailNow()
-	}
-}
-
 func TestDeepTracedErrro(t *testing.T) {
 	var err error
 	funcAA(func() {

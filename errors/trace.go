@@ -69,15 +69,6 @@ func Trace(err error) error {
 	return traceIfNeeded(err, 1)
 }
 
-// like [Trace] but suitable for multiple return
-func Trace2[Ret any](ret Ret, err error) (Ret, error) {
-	if err == nil {
-		return ret, nil
-	}
-
-	return ret, traceIfNeeded(err, 1)
-}
-
 // Get stack trace of err
 func StackTrace(err error) []Location {
 	if traced := findTracedErr(err, true); traced != nil {
