@@ -29,7 +29,7 @@ func main() {
 	}
 
 	nameParts := strings.Split(targetDir, string(os.PathSeparator))
-	for i := 0; i < len(nameParts)-1; i++ {
+	for i := range nameParts {
 		nameParts[i] = normalize(nameParts[i])
 	}
 	if len(nameParts) > 0 && nameParts[0] == "" {
