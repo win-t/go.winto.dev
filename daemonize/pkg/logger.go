@@ -3,6 +3,7 @@ package pkg
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
@@ -28,6 +29,10 @@ func (s svc) setupForwarder(ctx context.Context, wg *sync.WaitGroup) (*os.File, 
 			case <-ctx.Done():
 				return
 			case <-sigCh:
+				fmt.Printf(
+					"[%s] Reopening log files...\n",
+					time.Now().Format(time.RFC3339),
+				)
 				stdoutCh.notify()
 				stderrCh.notify()
 			}
@@ -72,11 +77,11 @@ func setupForwarderBackend(parentCtx context.Context, wg *sync.WaitGroup, path s
 			if err != nil {
 				return
 			}
-			defer func() { _ = dst.Close() }()
+			defer dst.Close()
 
 			ctx, cancelCtx := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancelCtx()
-			go func() { <-ctx.Done(); _ = dst.SetWriteDeadline(time.Unix(0, 0)) }()
+			go func() { <-ctx.Done(); dst.SetWriteDeadline(time.Unix(0, 0)) }()
 
 			var n int
 			n, err = dst.Write(fwd.chunk)
@@ -88,7 +93,7 @@ func setupForwarderBackend(parentCtx context.Context, wg *sync.WaitGroup, path s
 			if err != nil {
 				errMsg = err.Error()
 			}
-			printf(
+			fmt.Printf(
 				"[%s] discarding %d bytes of log to %s because of error '%s'\n",
 				time.Now().Format(time.RFC3339),
 				len(fwd.chunk),
@@ -102,8 +107,8 @@ func setupForwarderBackend(parentCtx context.Context, wg *sync.WaitGroup, path s
 }
 
 type forwardState struct {
-	src   *os.File
 	buf   [4 << 10]byte
+	src   *os.File
 	chunk []byte
 }
 
@@ -119,10 +124,10 @@ func (fwd *forwardState) doForward(ctx context.Context, path string) {
 	err := fwd.src.SetReadDeadline(time.Time{})
 	check(err)
 
-	_ = os.MkdirAll(filepath.Dir(path), 0o700)
+	os.MkdirAll(filepath.Dir(path), 0o700)
 	dst, err := openLogFile(path)
 	if err != nil {
-		printf(
+		fmt.Printf(
 			"[%s] failed to open '%s' (%s), suspend log forwarder for 15 second\n",
 			time.Now().Format(time.RFC3339),
 			path,
@@ -134,14 +139,20 @@ func (fwd *forwardState) doForward(ctx context.Context, path string) {
 		}
 		return
 	}
-	defer func() { _ = dst.Close() }()
+	defer dst.Close()
+
+	fmt.Printf(
+		"[%s] forwarding logs to '%s'\n",
+		time.Now().Format(time.RFC3339),
+		path,
+	)
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		<-ctx.Done()
-		_ = fwd.src.SetReadDeadline(time.Unix(0, 0))
-		_ = dst.SetWriteDeadline(time.Unix(0, 0))
+		fwd.src.SetReadDeadline(time.Unix(0, 0))
+		dst.SetWriteDeadline(time.Unix(0, 0))
 	}()
 
 	for {
@@ -170,7 +181,7 @@ func (fwd *forwardState) doForward(ctx context.Context, path string) {
 		fwd.chunk = fwd.chunk[n:]
 		if err != nil {
 			if ctx.Err() == nil {
-				printf(
+				fmt.Printf(
 					"[%s] failed to write to '%s' (%s), force reopen\n",
 					time.Now().Format(time.RFC3339),
 					path,

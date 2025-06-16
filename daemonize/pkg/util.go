@@ -6,16 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 )
-
-var stdoutMutex sync.Mutex
-
-func printf(f string, args ...any) {
-	stdoutMutex.Lock()
-	_, _ = fmt.Printf(f, args...)
-	stdoutMutex.Unlock()
-}
 
 func printUsageAndExit() {
 	var cmds []string
@@ -24,7 +15,7 @@ func printUsageAndExit() {
 	}
 	sort.Strings(cmds)
 
-	_, _ = fmt.Fprintf(os.Stderr, "usage: %s <service path> (%s)\n", os.Args[0], strings.Join(cmds, "|"))
+	fmt.Fprintf(os.Stderr, "usage: %s <service path> (%s)\n", os.Args[0], strings.Join(cmds, "|"))
 
 	os.Exit(1)
 }
@@ -43,12 +34,8 @@ func (s svc) supervisorPidPath() string {
 	return filepath.Join(s.statePath(), "pid")
 }
 
-func (s svc) supervisorStdout() string {
-	return filepath.Join(s.statePath(), "out")
-}
-
-func (s svc) supervisorStderr() string {
-	return filepath.Join(s.statePath(), "err")
+func (s svc) supervisorLog() string {
+	return filepath.Join(s.statePath(), "log")
 }
 
 func (s svc) runPath() string {

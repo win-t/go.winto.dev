@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const envStateKey = "AA5523AC76631703"
+const envStateKey = "DAEMONIZE_STATE"
 
 func envstateGetID() string {
 	state := os.Getenv(envStateKey)

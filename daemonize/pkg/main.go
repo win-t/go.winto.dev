@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,6 +16,7 @@ var cmdFn = map[string]func(svc){
 	"start":   svc.cmdStart,
 	"status":  svc.cmdStatus,
 	"stop":    svc.cmdStop,
+	"pid":     svc.cmdPid,
 }
 
 func Main() {
@@ -53,7 +55,7 @@ func (s svc) cmdReopen() {
 func (s svc) cmdRestart() {
 	pid := s.getSupervisorPid()
 	if pid == 0 {
-		printf("not running, it will do start instead")
+		fmt.Printf("not running, it will do start instead")
 		s.cmdStart()
 		return
 	}
@@ -69,12 +71,13 @@ func (s svc) cmdStart() {
 }
 
 func (s svc) cmdStatus() {
-	if s.getSupervisorPid() == 0 {
-		printf("stopped\n")
+	pid := s.getSupervisorPid()
+	if pid == 0 {
+		fmt.Printf("stopped\n")
 		return
 	}
 
-	printf("running\n")
+	fmt.Printf("running\n")
 }
 
 func (s svc) cmdStop() {
@@ -85,4 +88,13 @@ func (s svc) cmdStop() {
 
 	err := syscall.Kill(pid, syscall.SIGTERM)
 	check(err)
+}
+
+func (s svc) cmdPid() {
+	pid := s.getSupervisorPid()
+	if pid == 0 {
+		return
+	}
+
+	fmt.Printf("%d\n", pid)
 }

@@ -25,7 +25,7 @@ func (s svc) doubleForkIsNeeded() bool {
 	if s.getSupervisorPid() != 0 {
 		return false
 	}
-	_ = os.RemoveAll(s.statePath())
+	os.RemoveAll(s.statePath())
 	err = os.Mkdir(s.statePath(), 0o700)
 	check(err)
 	return true
@@ -52,31 +52,27 @@ func (s svc) doDoubleFork() {
 			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr, wInfo},
 		})
 		check(err)
-		_, _ = p.Wait()
+		p.Wait()
 
 		var buf [8]byte
-		_ = rInfo.SetReadDeadline(time.Now().Add(5 * time.Second))
+		rInfo.SetReadDeadline(time.Now().Add(5 * time.Second))
 		n, _ := rInfo.Read(buf[:])
 		if slices.Compare(buf[:n], []byte("ok")) != 0 {
-			stdout, _ := os.ReadFile(s.supervisorStdout())
-			_, _ = os.Stdout.Write(stdout)
-			stderr, _ := os.ReadFile(s.supervisorStderr())
-			_, _ = os.Stderr.Write(stderr)
-			_, _ = fmt.Fprintln(os.Stderr, "Failed to start daemonize process")
+			stderr, _ := os.ReadFile(s.supervisorLog())
+			os.Stderr.Write(stderr)
+			fmt.Fprintln(os.Stderr, "Failed to start daemonize process")
 			os.Exit(1)
 		}
 
 	case 1:
 		stdin, err := os.Open("/dev/null")
 		check(err)
-		stdout, err := os.OpenFile(s.supervisorStdout(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
-		check(err)
-		stderr, err := os.OpenFile(s.supervisorStderr(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+		logFile, err := os.OpenFile(s.supervisorLog(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 		check(err)
 
 		_, err = forkExec(&os.ProcAttr{
 			Sys:   &syscall.SysProcAttr{Setpgid: true},
-			Files: []*os.File{stdin, stdout, stderr, os.NewFile(3, "info")},
+			Files: []*os.File{stdin, logFile, logFile, os.NewFile(3, "info")},
 		})
 		check(err)
 
@@ -99,13 +95,13 @@ func (s svc) doDoubleFork() {
 }
 
 func (s svc) startMainLoop() {
-	printf(
+	fmt.Printf(
 		"[%s] daemonize started for service dir '%s'\n",
 		time.Now().Format(time.RFC3339),
 		string(s),
 	)
 	defer func() {
-		printf(
+		fmt.Printf(
 			"[%s] daemonize exited\n",
 			time.Now().Format(time.RFC3339),
 		)
@@ -118,7 +114,7 @@ func (s svc) startMainLoop() {
 	defer cancelCtx()
 
 	stdout, stderr := s.setupForwarder(ctx, &wg)
-	defer func() { _ = stdout.Close(); _ = stderr.Close() }()
+	defer func() { stdout.Close(); stderr.Close() }()
 
 	sigCh := make(chan os.Signal, 2)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGUSR1)
@@ -128,19 +124,27 @@ func (s svc) startMainLoop() {
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, stdout, stderr
 
-		printf(
-			"[%s] starting the process\n",
-			time.Now().Format(time.RFC3339),
-		)
-
 		waitErrCh := make(chan error, 1)
-		go func() { waitErrCh <- cmd.Run() }()
+		go func() {
+			err := cmd.Start()
+			if err != nil {
+				waitErrCh <- err
+				return
+			}
+			fmt.Printf(
+				"[%s] process '%s' started with pid %d\n",
+				time.Now().Format(time.RFC3339),
+				s.runPath(),
+				cmd.Process.Pid,
+			)
+			waitErrCh <- cmd.Wait()
+		}()
 
 		beforeWait := time.Now()
 		select {
 		case err := <-waitErrCh:
 			if err == nil {
-				printf(
+				fmt.Printf(
 					"[%s] the process exited successfully\n",
 					time.Now().Format(time.RFC3339),
 				)
@@ -151,7 +155,7 @@ func (s svc) startMainLoop() {
 			if realErr := (*exec.ExitError)(nil); errors.As(err, &realErr) {
 				status := realErr.Sys().(syscall.WaitStatus)
 				if status.Signaled() {
-					printf(
+					fmt.Printf(
 						"[%s] the process killed by signal %d (%s), restarting in %s\n",
 						time.Now().Format(time.RFC3339),
 						int(status.Signal()),
@@ -159,7 +163,7 @@ func (s svc) startMainLoop() {
 						sleepDur.Round(time.Millisecond).String(),
 					)
 				} else {
-					printf(
+					fmt.Printf(
 						"[%s] the process exited with status code %d, restarting in %s\n",
 						time.Now().Format(time.RFC3339),
 						status.ExitStatus(),
@@ -167,7 +171,7 @@ func (s svc) startMainLoop() {
 					)
 				}
 			} else {
-				printf(
+				fmt.Printf(
 					"[%s] failed to execute '%s' (%s), restarting in %s\n",
 					time.Now().Format(time.RFC3339),
 					s.runPath(),
@@ -181,13 +185,13 @@ func (s svc) startMainLoop() {
 			case sig := <-sigCh:
 				switch sig {
 				case syscall.SIGTERM:
-					printf(
+					fmt.Printf(
 						"[%s] exit is requested while in restart back-off\n",
 						time.Now().Format(time.RFC3339),
 					)
 					return
 				case syscall.SIGUSR1:
-					printf(
+					fmt.Printf(
 						"[%s] restart is requested while in restart back-off\n",
 						time.Now().Format(time.RFC3339),
 					)
@@ -199,12 +203,12 @@ func (s svc) startMainLoop() {
 		case sig := <-sigCh:
 			switch sig {
 			case syscall.SIGTERM:
-				printf(
+				fmt.Printf(
 					"[%s] exit is requested, send termination signal to the process\n",
 					time.Now().Format(time.RFC3339),
 				)
 			case syscall.SIGUSR1:
-				printf(
+				fmt.Printf(
 					"[%s] restart is requested, send termination signal to the process\n",
 					time.Now().Format(time.RFC3339),
 				)
@@ -217,16 +221,16 @@ func (s svc) startMainLoop() {
 
 			select {
 			case <-waitErrCh:
-				printf(
+				fmt.Printf(
 					"[%s] process exited within 15 seconds\n",
 					time.Now().Format(time.RFC3339),
 				)
 			case <-time.After(15 * time.Second):
-				printf(
+				fmt.Printf(
 					"[%s] the process is not exited within 15 seconds, force kill it\n",
 					time.Now().Format(time.RFC3339),
 				)
-				_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+				syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 				<-waitErrCh
 			}
 
