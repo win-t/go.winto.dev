@@ -101,3 +101,14 @@ func TestPanicOnErr(t *testing.T) {
 	Sh(`exit 10`, PanicOnErr())
 	t.Fatal()
 }
+
+func TestInitVar(t *testing.T) {
+	out := Sh(`
+		printf ">>%s-%s<<" "$MY_VAR" "$(sh -c 'echo "$MY_VAR"')"
+	`, Var(map[string]string{
+		"MY_VAR": "Hello",
+	}))
+	if out != ">>Hello-<<" {
+		t.Fatal()
+	}
+}

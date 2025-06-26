@@ -3,6 +3,7 @@ package sh
 import (
 	"context"
 	"os/exec"
+	"regexp"
 )
 
 type shellOpt struct {
@@ -19,6 +20,7 @@ type shellOpt struct {
 	ctx         context.Context
 	panicOnErr  bool
 	useStdout   bool
+	initVars    map[string]string
 }
 
 func Args(args ...string) OptFn {
@@ -98,5 +100,23 @@ func PanicOnErr() OptFn {
 func UseStdout() OptFn {
 	return func(b *shellOpt) {
 		b.useStdout = true
+	}
+}
+
+var validShellVarNameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// Use Var instead of [Env] or [EnvMap] to set shell variables,
+// this variable will not be inherited to env of child processes.
+func Var(vars map[string]string) OptFn {
+	return func(b *shellOpt) {
+		if b.initVars == nil {
+			b.initVars = make(map[string]string)
+		}
+		for k, v := range vars {
+			if !validShellVarNameRegex.MatchString(k) {
+				panic("invalid shell variable name: " + k)
+			}
+			b.initVars[k] = v
+		}
 	}
 }

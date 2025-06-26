@@ -38,9 +38,18 @@ func shell(shell string, cmd string, opts ...OptFn) string {
 		opt(b)
 	}
 
+	var fullCommand strings.Builder
+	for k, v := range b.initVars {
+		fullCommand.WriteString(k)
+		fullCommand.WriteString("=")
+		fullCommand.WriteString(Escape(v))
+		fullCommand.WriteString(";")
+	}
+	fullCommand.WriteString(b.cmd)
+
 	var outBuf, errBuf bytes.Buffer
 	var proc *exec.Cmd
-	args := append([]string{"-c", b.cmd, "-"}, b.args...)
+	args := append([]string{"-c", fullCommand.String(), "-"}, b.args...)
 	if b.ctx != nil {
 		proc = exec.CommandContext(b.ctx, b.shell, args...)
 	} else {
