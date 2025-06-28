@@ -42,7 +42,7 @@ mkdir -p "$tool_path"
 PATH="$tool_path:$PATH"
 
 if ! command -v webhosting-helper > /dev/null 2>&1; then
-  url="https://github.com/win-t/go.winto.dev/releases/download/webhosting-helper%2Fv0.1.3/webhosting-helper"
+  url="https://github.com/win-t/go.winto.dev/releases/download/webhosting-helper%2Fv0.1.4/webhosting-helper"
   out="$opt/webhosting-helper/bin/webhosting-helper"
   curl -Lf --compressed -o "$out" "$url" || wget -qO "$out" "$url"
   chmod a+x "$out"

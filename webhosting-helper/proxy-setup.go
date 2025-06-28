@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
 )
@@ -23,8 +24,8 @@ func proxySetup() {
 
 	serviceDir := filepath.Dir(serviceEntrypoint)
 	serviceFile := filepath.Base(serviceEntrypoint)
-	if serviceFile == "run" {
-		fmt.Fprintf(os.Stderr, "error: service entrypoint file cannot be named 'run'")
+	if slices.Contains([]string{"daemonize.state", "log", "run", "socket"}, serviceFile) {
+		fmt.Fprintf(os.Stderr, "error: service entrypoint file cannot be named '%s'", serviceFile)
 		os.Exit(1)
 	}
 
