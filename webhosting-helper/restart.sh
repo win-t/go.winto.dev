@@ -64,7 +64,7 @@ if [ -z "$dry_run" ]; then
   sleep 1
 fi
 
-ps -ef
+ps -eHo pid,ppid,time,rss,start,command
 tail "$SERVICE_DIR/daemonize.state/log"
 
 ) > "$state/log" 2>&1
