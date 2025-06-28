@@ -5,4 +5,14 @@ export SERVICE_SOCKET="$PWD/socket"
 
 rm -f "$SERVICE_SOCKET"
 chmod a+x ./{{ .entrypoint_file }}
+(
+  timeout=$(date -d '+10 seconds' +%s)
+  while [ "$(date +%s)" -lt "$timeout" ]; do
+    if [ -S "$SERVICE_SOCKET" ]; then
+      chmod a+wr "$SERVICE_SOCKET"
+      break
+    fi
+    sleep 0.1 || sleep 1
+  done
+) &
 exec env -i "HOME=$HOME" "PATH=$PATH" "SERVICE_SOCKET=$SERVICE_SOCKET" ./{{ .entrypoint_file }}

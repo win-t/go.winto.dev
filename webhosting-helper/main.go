@@ -10,9 +10,10 @@ import (
 )
 
 var tools = map[string]func(){
-	"gorundir":            gorundir.Main,
-	"daemonize":           daemonize.Main,
-	"proxy-service-setup": proxySetup,
+	"gorundir":                     gorundir.Main,
+	"daemonize":                    daemonize.Main,
+	"proxy-service-setup-php-mode": func() { proxySetup(true) },
+	"proxy-service-setup":          func() { proxySetup(false) },
 }
 
 func main() {

@@ -13,7 +13,7 @@ import (
 //go:embed templates
 var templatesFS embed.FS
 
-func proxySetup() {
+func proxySetup(usePHP bool) {
 	if len(os.Args) != 3 {
 		fmt.Fprintf(os.Stderr, "usage: %s <service entrypoint> <service webroot>\n", os.Args[0])
 		os.Exit(1)
@@ -38,10 +38,16 @@ func proxySetup() {
 	})
 
 	os.MkdirAll(serviceWebroot, 0755)
-	copyTemplate("templates/htaccess", filepath.Join(serviceWebroot, ".htaccess"), 0644, nil)
-	copyTemplate("templates/index.php", filepath.Join(serviceWebroot, "index.php"), 0644, map[string]string{
-		"service_sock": "'" + strings.ReplaceAll(filepath.Join(serviceDir, "socket"), `'`, `\'`) + "'",
-	})
+	if usePHP {
+		copyTemplate("templates/htaccess", filepath.Join(serviceWebroot, ".htaccess"), 0644, nil)
+		copyTemplate("templates/index.php", filepath.Join(serviceWebroot, "index.php"), 0644, map[string]string{
+			"service_sock": strings.ReplaceAll(filepath.Join(serviceDir, "socket"), `'`, `\'`),
+		})
+	} else {
+		copyTemplate("templates/htaccess2", filepath.Join(serviceWebroot, ".htaccess"), 0644, map[string]string{
+			"service_sock": strings.ReplaceAll(filepath.Join(serviceDir, "socket"), `"`, `\"`),
+		})
+	}
 }
 
 func copyTemplate(srcPath, dstPath string, mode os.FileMode, v any) {

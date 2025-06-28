@@ -11,7 +11,7 @@ function die_bad_gateway($msg) {
 	die();
 }
 
-$unix_socket = {{ .service_sock }};
+$unix_socket = '{{ .service_sock }}';
 
 if(ini_get("enable_post_data_reading")) die_bad_gateway(__LINE__);
 
