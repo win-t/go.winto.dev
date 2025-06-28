@@ -41,14 +41,19 @@ func envstateSetNext() int {
 }
 
 func (s svc) writePidFile() {
-	err := os.WriteFile(s.supervisorPidPath(), []byte(fmt.Sprintf("%d %s\n", os.Getpid(), envstateGetID())), 0o600)
+	err := os.WriteFile(s.supervisorPidPath(), fmt.Appendf(nil, "%d %s\n", os.Getpid(), envstateGetID()), 0o600)
 	check(err)
 }
 
 func (s svc) getSupervisorPid() int {
+	pid, _ := s.getSupervisorPidState()
+	return pid
+}
+
+func (s svc) getSupervisorPidState() (int, bool) {
 	data, err := os.ReadFile(s.supervisorPidPath())
 	if err != nil && errors.Is(err, fs.ErrNotExist) {
-		return 0
+		return 0, false
 	}
 	check(err)
 
@@ -59,15 +64,15 @@ func (s svc) getSupervisorPid() int {
 
 	liveStateId, err := readEnvstateIDFromPid(pid)
 	if err != nil && errors.Is(err, fs.ErrNotExist) {
-		return 0
+		return 0, true
 	}
 	check(err)
 
 	if stateID != liveStateId {
-		return 0
+		return 0, true
 	}
 
-	return pid
+	return pid, true
 }
 
 func readEnvstateIDFromPid(pid int) (string, error) {

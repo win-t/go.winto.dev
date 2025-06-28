@@ -14,10 +14,10 @@ import (
 )
 
 func (s svc) setupForwarder(ctx context.Context, wg *sync.WaitGroup) (*os.File, *os.File) {
-	stdoutCh := newNotifyCh()
+	stdoutCh := make(chan struct{}, 1)
 	stdout := setupForwarderBackend(ctx, wg, s.runLogStdoutPath(), stdoutCh)
 
-	stderrCh := newNotifyCh()
+	stderrCh := make(chan struct{}, 1)
 	stderr := setupForwarderBackend(ctx, wg, s.runLogStderrPath(), stderrCh)
 
 	sigCh := make(chan os.Signal, 1)
@@ -33,8 +33,8 @@ func (s svc) setupForwarder(ctx context.Context, wg *sync.WaitGroup) (*os.File, 
 					"[%s] Reopening log files...\n",
 					time.Now().Format(time.RFC3339),
 				)
-				stdoutCh.notify()
-				stderrCh.notify()
+				stdoutCh <- struct{}{}
+				stderrCh <- struct{}{}
 			}
 		}
 	}()
@@ -42,7 +42,7 @@ func (s svc) setupForwarder(ctx context.Context, wg *sync.WaitGroup) (*os.File, 
 	return stdout, stderr
 }
 
-func setupForwarderBackend(parentCtx context.Context, wg *sync.WaitGroup, path string, notifyCh notifyCh) *os.File {
+func setupForwarderBackend(parentCtx context.Context, wg *sync.WaitGroup, path string, notifyCh <-chan struct{}) *os.File {
 	r, w, err := os.Pipe()
 	check(err)
 
@@ -58,9 +58,18 @@ func setupForwarderBackend(parentCtx context.Context, wg *sync.WaitGroup, path s
 				go func() {
 					select {
 					case <-ctx.Done():
-					case <-notifyCh.ch:
+					case <-notifyCh:
 					}
 					cancelCtx()
+				}()
+				defer func() {
+					if r := recover(); r != nil {
+						fmt.Printf(
+							"[%s] panic in log forwarder to: %v\n",
+							time.Now().Format(time.RFC3339),
+							r,
+						)
+					}
 				}()
 				fwd.doForward(ctx, path)
 			}()
@@ -70,6 +79,7 @@ func setupForwarderBackend(parentCtx context.Context, wg *sync.WaitGroup, path s
 			return
 		}
 
+		// last attempt to write the remaining chunk
 		var err error
 		func() {
 			var dst *os.File
@@ -79,9 +89,7 @@ func setupForwarderBackend(parentCtx context.Context, wg *sync.WaitGroup, path s
 			}
 			defer dst.Close()
 
-			ctx, cancelCtx := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancelCtx()
-			go func() { <-ctx.Done(); dst.SetWriteDeadline(time.Unix(0, 0)) }()
+			dst.SetWriteDeadline(time.Now().Add(5 * time.Second))
 
 			var n int
 			n, err = dst.Write(fwd.chunk)
@@ -112,7 +120,6 @@ type forwardState struct {
 	chunk []byte
 }
 
-// return true mean the caller need to call this function again
 func (fwd *forwardState) doForward(ctx context.Context, path string) {
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -124,7 +131,6 @@ func (fwd *forwardState) doForward(ctx context.Context, path string) {
 	err := fwd.src.SetReadDeadline(time.Time{})
 	check(err)
 
-	os.MkdirAll(filepath.Dir(path), 0o700)
 	dst, err := openLogFile(path)
 	if err != nil {
 		fmt.Printf(
@@ -194,5 +200,6 @@ func (fwd *forwardState) doForward(ctx context.Context, path string) {
 }
 
 func openLogFile(path string) (*os.File, error) {
+	os.MkdirAll(filepath.Dir(path), 0o700)
 	return os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY|syscall.O_NONBLOCK, 0o600)
 }

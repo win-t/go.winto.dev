@@ -53,14 +53,3 @@ func (s svc) runLogStdoutPath() string {
 func (s svc) runLogStderrPath() string {
 	return filepath.Join(s.runLogPath(), "err")
 }
-
-type notifyCh struct{ ch chan struct{} }
-
-func newNotifyCh() notifyCh { return notifyCh{make(chan struct{}, 1)} }
-
-func (r notifyCh) notify() {
-	select {
-	case r.ch <- struct{}{}:
-	default:
-	}
-}

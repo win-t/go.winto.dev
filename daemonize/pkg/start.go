@@ -22,8 +22,19 @@ func (s svc) doubleForkIsNeeded() bool {
 	if !errors.Is(err, fs.ErrExist) {
 		panic(err)
 	}
-	if s.getSupervisorPid() != 0 {
-		return false
+	// state directory already exists, so someone else is managed it.
+	// wait few seconds before take it over.
+	for until := time.Now().Add(3 * time.Second); time.Now().Before(until); {
+		pid, pidStateExists := s.getSupervisorPidState()
+		if pidStateExists {
+			if pid != 0 {
+				return false
+			} else {
+				// pid state exists but process is not running, taiking over
+				break
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	os.RemoveAll(s.statePath())
 	err = os.Mkdir(s.statePath(), 0o700)
