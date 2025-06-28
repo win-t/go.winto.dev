@@ -53,11 +53,16 @@ proxy-service-setup "$SERVICE_APP" "$SERVICE_WEBROOT"
 
 SERVICE_DIR="$(dirname "$SERVICE_APP")"
 
-env -i "HOME=$HOME" "PATH=$PATH" daemonize "$SERVICE_DIR" restart
+dry_run=
+case "$QUERY_STRING" in
+  *dry_run=true*) dry_run=1 ;;
+esac
 
-echo "Service restarted successfully."
-
-sleep 1
+if [ -z "$dry_run" ]; then
+  env -i "HOME=$HOME" "PATH=$PATH" daemonize "$SERVICE_DIR" restart
+  echo "Service restarted successfully."
+  sleep 1
+fi
 
 ps -ef
 tail "$SERVICE_DIR/daemonize.state/log"
