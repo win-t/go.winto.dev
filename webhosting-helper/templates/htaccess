@@ -1,4 +1,3 @@
-SetEnv SERVICE_SOCKET "{{ .service_sock }}"
 php_value enable_post_data_reading 0
 RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f

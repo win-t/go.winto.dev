@@ -34,12 +34,12 @@ func proxySetup() {
 
 	os.MkdirAll(serviceWebroot, 0755)
 	if f := filepath.Join(serviceWebroot, ".htaccess"); fileNotExists(f) {
-		copyTemplate("templates/htaccess", f, 0644, map[string]string{
-			"service_sock": strings.ReplaceAll(filepath.Join(serviceDir, "socket"), `"`, `\"`),
-		})
+		copyTemplate("templates/htaccess", f, 0644, nil)
 	}
 	if f := filepath.Join(serviceWebroot, "index.php"); fileNotExists(f) {
-		copyTemplate("templates/index.php", f, 0644, nil)
+		copyTemplate("templates/index.php", f, 0644, map[string]string{
+			"service_sock": "'" + strings.ReplaceAll(filepath.Join(serviceDir, "socket"), `'`, `\'`) + "'",
+		})
 	}
 }
 
