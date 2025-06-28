@@ -4,4 +4,4 @@ cd "$(dirname "$0")"
 export SERVICE_SOCKET="$PWD/socket"
 
 rm -f "$SERVICE_SOCKET"
-exec ./app
+exec env -i "HOME=$HOME" "PATH=$PATH" "SERVICE_SOCKET=$SERVICE_SOCKET" ./{{ .entrypoint_file }}
