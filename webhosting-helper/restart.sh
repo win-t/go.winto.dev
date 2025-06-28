@@ -22,15 +22,15 @@ echo ""
 
 state=".$(basename "$0").state"
 if ! mkdir "$state"; then
-  echo "Another instance of this script is already running, log:"
-  echo ""
-  cat "$state/log"
+  echo "Another instance of this script is already running."
+  echo "log:"
+  cat "$state/log" 2>&1
   exit 0
 fi
-
 trap 'rm -rf "$state"; exit 0' EXIT
 
 (
+
 set -eux
 
 export HOME
@@ -67,6 +67,4 @@ fi
 ps -eHo pid,ppid,time,rss,start,command
 tail "$SERVICE_DIR/daemonize.state/log"
 
-) > "$state/log" 2>&1
-
-cat "$state/log"
+) 2>&1 | tee "$state/log"
