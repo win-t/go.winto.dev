@@ -1,0 +1,4 @@
+go.winto.dev/daemonize v0.4.0 h1:ydWmxrcWdgZmz/+1zD7SMdJzz0D4CA5MnziV2wdoll8=
+go.winto.dev/daemonize v0.4.0/go.mod h1:KTOMQc8dH64A71yS9xxDMvFW+GrcwmFVIbjKPJ2oAkM=
+go.winto.dev/gorundir v1.2.0 h1:T0V2mP2aAeTZu0yQpFRNPL1HcIV3nvEu/i+sRgVzI20=
+go.winto.dev/gorundir v1.2.0/go.mod h1:bAIryAr34HxWe4Keya2j2snRqzapYqqOh3NlMDDrv4A=

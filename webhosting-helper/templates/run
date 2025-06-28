@@ -1,0 +1,7 @@
+#!/bin/sh
+
+cd "$(dirname "$0")"
+export SERVICE_SOCKET="$PWD/socket"
+
+rm -f "$SERVICE_SOCKET"
+exec ./app
