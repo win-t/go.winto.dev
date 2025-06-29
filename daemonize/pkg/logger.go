@@ -201,5 +201,5 @@ func (fwd *forwardState) doForward(ctx context.Context, path string) {
 
 func openLogFile(path string) (*os.File, error) {
 	os.MkdirAll(filepath.Dir(path), 0o700)
-	return os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY|syscall.O_NONBLOCK, 0o600)
+	return os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 }
