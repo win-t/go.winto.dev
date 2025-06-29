@@ -21,7 +21,7 @@ func proxySetup(usePHP bool) {
 	serviceEntrypoint, err := filepath.Abs(os.Args[1])
 	check(err)
 	serviceDir := serviceEntrypoint + ".state"
-	serviceFile := filepath.Join("..", filepath.Base(serviceEntrypoint))
+	serviceFile := filepath.Base(serviceEntrypoint)
 
 	serviceWebroot, err := filepath.Abs(os.Args[2])
 	check(err)

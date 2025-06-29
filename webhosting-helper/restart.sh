@@ -42,7 +42,7 @@ mkdir -p "$tool_path"
 PATH="$tool_path:$PATH"
 
 if ! command -v webhosting-helper > /dev/null 2>&1; then
-  url="https://github.com/win-t/go.winto.dev/releases/download/webhosting-helper%2Fv0.1.8/webhosting-helper"
+  url="https://github.com/win-t/go.winto.dev/releases/download/webhosting-helper%2Fv0.1.9/webhosting-helper"
   out="$opt/webhosting-helper/bin/webhosting-helper"
   curl -Lf --compressed -o "$out" "$url" || wget -qO "$out" "$url"
   chmod a+x "$out"
@@ -51,7 +51,7 @@ fi
 
 proxy-service-setup "$SERVICE_APP" "$SERVICE_WEBROOT"
 
-SERVICE_DIR="$(dirname "$SERVICE_APP")"
+SERVICE_DIR="${SERVICE_APP}.state"
 
 dry_run=
 case "$QUERY_STRING" in

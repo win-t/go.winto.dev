@@ -15,4 +15,5 @@ chmod a+x ./{{ .entrypoint_file }}
     sleep 0.1 || sleep 1
   done
 ) & )
-exec env -i "HOME=$HOME" "PATH=$PATH" "SERVICE_SOCKET=$SERVICE_SOCKET" {{ .entrypoint_file }}
+cd ..
+exec env -i "HOME=$HOME" "PATH=$PATH" "SERVICE_SOCKET=$SERVICE_SOCKET" ./{{ .entrypoint_file }}
