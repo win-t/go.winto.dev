@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"text/template"
 )
@@ -21,13 +20,8 @@ func proxySetup(usePHP bool) {
 
 	serviceEntrypoint, err := filepath.Abs(os.Args[1])
 	check(err)
-
-	serviceDir := filepath.Dir(serviceEntrypoint)
-	serviceFile := filepath.Base(serviceEntrypoint)
-	if slices.Contains([]string{"daemonize.state", "log", "run", "socket"}, serviceFile) {
-		fmt.Fprintf(os.Stderr, "error: service entrypoint file cannot be named '%s'", serviceFile)
-		os.Exit(1)
-	}
+	serviceDir := serviceEntrypoint + ".state"
+	serviceFile := filepath.Join("..", filepath.Base(serviceEntrypoint))
 
 	serviceWebroot, err := filepath.Abs(os.Args[2])
 	check(err)
@@ -47,6 +41,7 @@ func proxySetup(usePHP bool) {
 		copyTemplate("templates/htaccess2", filepath.Join(serviceWebroot, ".htaccess"), 0644, map[string]string{
 			"service_sock": strings.ReplaceAll(filepath.Join(serviceDir, "socket"), `"`, `\"`),
 		})
+		os.RemoveAll(filepath.Join(serviceWebroot, "index.php"))
 	}
 }
 
