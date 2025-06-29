@@ -60,6 +60,7 @@ esac
 
 if [ -z "$dry_run" ]; then
   env -i "HOME=$HOME" "PATH=$PATH" daemonize "$SERVICE_DIR" restart
+  daemonize "$SERVICE_DIR" reopen
   echo "Service restarted successfully."
   sleep 1
 fi
