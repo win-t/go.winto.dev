@@ -41,7 +41,10 @@ func envstateSetNext() int {
 }
 
 func (s svc) writePidFile() {
-	err := os.WriteFile(s.supervisorPidPath(), fmt.Appendf(nil, "%d %s\n", os.Getpid(), envstateGetID()), 0o600)
+	f, err := os.OpenFile(s.supervisorPidPath(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC|os.O_EXCL, 0o600)
+	check(err)
+	defer f.Close()
+	_, err = fmt.Fprintf(f, "%d %s\n", os.Getpid(), envstateGetID())
 	check(err)
 }
 

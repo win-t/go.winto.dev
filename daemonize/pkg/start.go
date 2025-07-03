@@ -24,8 +24,10 @@ func (s svc) doubleForkIsNeeded() bool {
 	}
 	// state directory already exists, so someone else is managed it.
 	// wait few seconds before take it over.
-	for until := time.Now().Add(3 * time.Second); time.Now().Before(until); {
-		pid, pidStateExists := s.getSupervisorPidState()
+	var pidStateExists bool
+	for until := time.Now().Add(15 * time.Second); time.Now().Before(until); {
+		var pid int
+		pid, pidStateExists = s.getSupervisorPidState()
 		if pidStateExists {
 			if pid != 0 {
 				return false
@@ -34,7 +36,10 @@ func (s svc) doubleForkIsNeeded() bool {
 				break
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
+	}
+	if !pidStateExists {
+		panic("daemonize state folder exists but pid state is not found")
 	}
 	os.RemoveAll(s.statePath())
 	err = os.Mkdir(s.statePath(), 0o700)
