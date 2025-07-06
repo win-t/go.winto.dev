@@ -14,36 +14,35 @@ import (
 	"time"
 )
 
-func (s svc) doubleForkIsNeeded() bool {
-	err := os.Mkdir(s.statePath(), 0o700)
+func (s svc) startIsNeeded() bool {
+	f, err := os.OpenFile(s.supervisorPidPath(), os.O_CREATE|os.O_EXCL|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err == nil {
+		// we created the pid file, so we are the first to start.
+		f.Close()
 		return true
 	}
 	if !errors.Is(err, fs.ErrExist) {
 		panic(err)
 	}
-	// state directory already exists, so someone else is managed it.
-	// wait few seconds before take it over.
-	var pidStateExists bool
-	for until := time.Now().Add(15 * time.Second); time.Now().Before(until); {
+	// pid file already exists, wait until the state is written to it.
+
+	var pidStateValid bool
+	for until := time.Now().Add(5 * time.Second); time.Now().Before(until); {
 		var pid int
-		pid, pidStateExists = s.getSupervisorPidState()
-		if pidStateExists {
+		pid, pidStateValid = s.getSupervisorPidState()
+		if pidStateValid {
 			if pid != 0 {
+				// supervisor is already running, so we do not need to start it.
 				return false
 			} else {
-				// pid state exists but process is not running, taiking over
 				break
 			}
 		}
-		time.Sleep(500 * time.Millisecond)
 	}
-	if !pidStateExists {
-		panic("daemonize state folder exists but pid state is not found")
+	if !pidStateValid {
+		panic("daemonize state folder exists but not valid")
 	}
-	os.RemoveAll(s.statePath())
-	err = os.Mkdir(s.statePath(), 0o700)
-	check(err)
+
 	return true
 }
 
@@ -63,7 +62,7 @@ func (s svc) doDoubleFork() {
 		rInfo, wInfo, err := os.Pipe()
 		check(err)
 
-		p, err := forkExec(&os.ProcAttr{
+		p, err := forkExecSelf(&os.ProcAttr{
 			Sys:   &syscall.SysProcAttr{Setsid: true},
 			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr, wInfo},
 		})
@@ -83,10 +82,10 @@ func (s svc) doDoubleFork() {
 	case 1:
 		stdin, err := os.Open("/dev/null")
 		check(err)
-		logFile, err := os.OpenFile(s.supervisorLog(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+		logFile, err := openLogFile(s.supervisorLog())
 		check(err)
 
-		_, err = forkExec(&os.ProcAttr{
+		_, err = forkExecSelf(&os.ProcAttr{
 			Sys:   &syscall.SysProcAttr{Setpgid: true},
 			Files: []*os.File{stdin, logFile, logFile, os.NewFile(3, "info")},
 		})
@@ -237,10 +236,6 @@ func (s svc) startMainLoop() {
 
 			select {
 			case <-waitErrCh:
-				fmt.Printf(
-					"[%s] process exited within 15 seconds\n",
-					time.Now().Format(time.RFC3339),
-				)
 			case <-time.After(15 * time.Second):
 				fmt.Printf(
 					"[%s] the process is not exited within 15 seconds, force kill it\n",

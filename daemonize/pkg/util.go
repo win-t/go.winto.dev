@@ -26,16 +26,12 @@ func check(err error) {
 	}
 }
 
-func (s svc) statePath() string {
-	return filepath.Join(string(s), "daemonize.state")
-}
-
 func (s svc) supervisorPidPath() string {
-	return filepath.Join(s.statePath(), ".pid")
+	return filepath.Join(string(s), ".pid")
 }
 
 func (s svc) supervisorLog() string {
-	return filepath.Join(s.statePath(), "log")
+	return filepath.Join(s.runLogPath(), "daemonize.log")
 }
 
 func (s svc) runPath() string {

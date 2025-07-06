@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -41,7 +42,7 @@ func envstateSetNext() int {
 }
 
 func (s svc) writePidFile() {
-	f, err := os.OpenFile(s.supervisorPidPath(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC|os.O_EXCL, 0o600)
+	f, err := os.OpenFile(s.supervisorPidPath(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	check(err)
 	defer f.Close()
 	_, err = fmt.Fprintf(f, "%d %s\n", os.Getpid(), envstateGetID())
@@ -59,6 +60,10 @@ func (s svc) getSupervisorPidState() (int, bool) {
 		return 0, false
 	}
 	check(err)
+
+	if bytes.Count(data, []byte("\n")) == 0 {
+		return 0, false
+	}
 
 	var pid int
 	var stateID string

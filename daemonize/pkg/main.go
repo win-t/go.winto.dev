@@ -65,7 +65,7 @@ func (s svc) cmdRestart() {
 }
 
 func (s svc) cmdStart() {
-	if s.doubleForkIsNeeded() {
+	if s.startIsNeeded() {
 		s.doDoubleFork()
 	}
 }

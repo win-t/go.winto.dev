@@ -147,12 +147,6 @@ func (fwd *forwardState) doForward(ctx context.Context, path string) {
 	}
 	defer dst.Close()
 
-	fmt.Printf(
-		"[%s] forwarding logs to '%s'\n",
-		time.Now().Format(time.RFC3339),
-		path,
-	)
-
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -188,7 +182,7 @@ func (fwd *forwardState) doForward(ctx context.Context, path string) {
 		if err != nil {
 			if ctx.Err() == nil {
 				fmt.Printf(
-					"[%s] failed to write to '%s' (%s), force reopen\n",
+					"[%s] failed to write to '%s' (%s)\n",
 					time.Now().Format(time.RFC3339),
 					path,
 					err.Error(),
