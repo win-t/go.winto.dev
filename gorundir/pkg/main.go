@@ -26,7 +26,7 @@ func Main() {
 	cacheDir = filepath.Join(cacheDir, "gorundir")
 	os.MkdirAll(cacheDir, 0755)
 
-	downloadAndInstallGo(cacheDir)
+	ensureGo(cacheDir)
 
 	if os.Getenv("GORUNDIR_ONLY_ENSURE_GO") != "" {
 		return
@@ -104,7 +104,7 @@ func httpGet(ctx context.Context, url string) (*http.Response, error) {
 	return http.DefaultClient.Do(req)
 }
 
-func downloadAndInstallGo(cacheDir string) {
+func ensureGo(cacheDir string) {
 	if _, err := exec.LookPath("go"); err == nil {
 		return
 	}
