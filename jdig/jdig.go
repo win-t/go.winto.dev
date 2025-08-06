@@ -37,7 +37,7 @@ func Marshal(v any) string {
 	return string(data)
 }
 
-func get[T any](v any, keys ...any) (ret T) {
+func Any(v any, keys ...any) any {
 	for _, key := range keys {
 		if v == nil {
 			break
@@ -59,8 +59,13 @@ func get[T any](v any, keys ...any) (ret T) {
 			panic("jdig: key must be string or integer")
 		}
 	}
-	r, _ := v.(T)
-	return r
+	return v
+}
+
+func get[T any](v any, keys ...any) (ret T) {
+	value := Any(v, keys...)
+	ret, _ = value.(T)
+	return ret
 }
 
 func Obj(v any, keys ...any) map[string]any {
@@ -75,12 +80,12 @@ func String(v any, keys ...any) string {
 	return get[string](v, keys...)
 }
 
-func Int(v any, keys ...any) int {
-	return int(get[float64](v, keys...))
-}
-
 func Float(v any, keys ...any) float64 {
 	return get[float64](v, keys...)
+}
+
+func Int(v any, keys ...any) int {
+	return int(Float(v, keys...))
 }
 
 func Bool(v any, keys ...any) bool {
@@ -88,5 +93,5 @@ func Bool(v any, keys ...any) bool {
 }
 
 func IsNull(v any, keys ...any) bool {
-	return get[any](v, keys...) == nil
+	return Any(v, keys...) == nil
 }
