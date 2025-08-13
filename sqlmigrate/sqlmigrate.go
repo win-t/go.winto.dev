@@ -38,8 +38,13 @@ func (e *StmtExecError) Error() string {
 
 func (e *StmtExecError) Unwrap() error { return e.Err }
 
+type DB interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 // Exec execute the stmts in order. It will skip if the stmt already executed.
-func Exec(ctx context.Context, db *sql.DB, stmts []string) error {
+func Exec(ctx context.Context, db DB, stmts []string) error {
 	// attempt to create the table and ignore the error
 	db.ExecContext(ctx, "create table go_winto_dev_sqlmigrate (i integer primary key, c integer)")
 
@@ -92,7 +97,7 @@ next_stmt:
 }
 
 // when this function return, the checksum on the row must be filled or the row must be deleted
-func run(ctx context.Context, db *sql.DB, i int, stmt string, checksum int32) (err error) {
+func run(ctx context.Context, db DB, i int, stmt string, checksum int32) (err error) {
 	success := false
 	defer func() {
 		if !success {
