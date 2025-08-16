@@ -2,6 +2,7 @@ package envparser_test
 
 import (
 	"errors"
+	"net/url"
 	"os"
 	"testing"
 
@@ -13,6 +14,7 @@ func TestParserTypes(t *testing.T) {
 		"b64":       "YXNkZg",
 		"FileBytes": "testdata/test.txt",
 		"b64ofjson": "eyJoZWxsbyI6IndvcmxkIn0K",
+		"testURL":   "https://google.com",
 	}
 
 	for k, v := range fakeEnv {
@@ -30,6 +32,7 @@ func TestParserTypes(t *testing.T) {
 		B64OfJson envparser.Base64OfJSON[struct {
 			Hello string `json:"hello"`
 		}] `env:"b64ofjson"`
+		TestURL *url.URL `env:"testURL"`
 	}
 
 	err := envparser.Unmarshal(&config)
@@ -43,6 +46,10 @@ func TestParserTypes(t *testing.T) {
 	}
 
 	if config.B64OfJson.Value.Hello != "world" {
+		t.FailNow()
+	}
+
+	if config.TestURL == nil || config.TestURL.Scheme != "https" || config.TestURL.Host != "google.com" {
 		t.FailNow()
 	}
 }

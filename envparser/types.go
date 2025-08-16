@@ -3,8 +3,28 @@ package envparser
 import (
 	"encoding/base64"
 	"encoding/json"
+	"net/url"
 	"os"
+	"reflect"
+	"time"
 )
+
+type Unmarshaler interface{ UnmarshalEnv(val string) error }
+
+var (
+	unmarshalerType = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
+	timeType        = reflect.TypeOf((*time.Time)(nil)).Elem()
+	durationType    = reflect.TypeOf((*time.Duration)(nil)).Elem()
+	locationType    = reflect.TypeOf((**time.Location)(nil)).Elem()
+	urlType         = reflect.TypeOf((**url.URL)(nil)).Elem()
+)
+
+var nativeUnmarshaler = map[reflect.Type]func(val string) (any, error){
+	timeType:     func(val string) (any, error) { return time.Parse(time.RFC3339Nano, val) },
+	durationType: func(val string) (any, error) { return time.ParseDuration(val) },
+	locationType: func(val string) (any, error) { return time.LoadLocation(val) },
+	urlType:      func(val string) (any, error) { return url.Parse(val) },
+}
 
 type Base64 []byte
 
