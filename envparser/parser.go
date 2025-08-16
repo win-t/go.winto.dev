@@ -22,8 +22,9 @@ var (
 // target must be non-nil pointer to struct.
 //
 // "env" tag in each field in target struct will be fetched from environment variable.
+// If "env" tag is empty string or field is not exported, the field is skipped.
 // If "env" tag is not found, field name is used.
-// If "env" tag is empty string, the field is skipped.
+// If "env" tag has "nounset" option, the env will be kept, otherwise it will be unset.
 //
 // if the field implement [Unmarshaler] interface, it will be used.
 func Unmarshal(target any) error {
@@ -37,14 +38,18 @@ func UnmarshalWithPrefix(target any, prefix string) error {
 	var parseError ParseError
 
 	for i, t := 0, targetVal.Type(); i < t.NumField(); i++ {
-		key := lookupEnvName(targetVal.Type().Field(i))
-		if key == "" {
+		envConfig := lookupEnvConfig(targetVal.Type().Field(i))
+		if envConfig.name == "" {
 			continue
 		}
 
+		key := envConfig.name
 		val, ok := os.LookupEnv(prefix + key)
 		if !ok {
 			continue
+		}
+		if !envConfig.noUnset {
+			os.Unsetenv(prefix + key)
 		}
 
 		f := targetVal.Field(i)
@@ -104,17 +109,32 @@ func UnmarshalWithPrefix(target any, prefix string) error {
 	return nil
 }
 
-func lookupEnvName(f reflect.StructField) string {
+type envConfig struct {
+	name    string
+	noUnset bool
+}
+
+func lookupEnvConfig(f reflect.StructField) envConfig {
 	if !f.IsExported() {
-		return ""
+		return envConfig{}
 	}
 
-	key, ok := f.Tag.Lookup("env")
+	config, ok := f.Tag.Lookup("env")
 	if ok {
-		return key
+		configParts := strings.Split(config, ",")
+		name := configParts[0]
+		noUnset := false
+		for _, c := range configParts[1:] {
+			if c == "nounset" {
+				noUnset = true
+			} else if c != "" {
+				panic("envparser: unknown tag option: " + c)
+			}
+		}
+		return envConfig{name: name, noUnset: noUnset}
 	}
 
-	return f.Name
+	return envConfig{name: f.Name}
 }
 
 func valueOfPointerToStruct(target any) reflect.Value {
@@ -137,12 +157,12 @@ func ListEnvName(target any) []string {
 
 	var ret []string
 	for i, t := 0, targetVal.Type(); i < t.NumField(); i++ {
-		key := lookupEnvName(targetVal.Type().Field(i))
-		if key == "" {
+		envConfig := lookupEnvConfig(targetVal.Type().Field(i))
+		if envConfig.name == "" {
 			continue
 		}
 
-		ret = append(ret, key)
+		ret = append(ret, envConfig.name)
 	}
 
 	return ret

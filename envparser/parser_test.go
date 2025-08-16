@@ -142,3 +142,42 @@ func TestPrefix(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestNoUnset(t *testing.T) {
+	fakeEnv := map[string]string{
+		"PREFIX_A": "42",
+		"PREFIX_B": "hello world",
+	}
+	for k, v := range fakeEnv {
+		os.Setenv(k, v)
+	}
+	defer func() {
+		for k := range fakeEnv {
+			os.Unsetenv(k)
+		}
+	}()
+
+	var config struct {
+		VarA int    `env:"A,nounset"`
+		VarB string `env:"B"`
+	}
+
+	err := envparser.UnmarshalWithPrefix(&config, "PREFIX_")
+	if err != nil {
+		t.Fatalf("%s", err.Error())
+	}
+
+	if config.VarA != 42 || config.VarB != "hello world" {
+		t.FailNow()
+	}
+
+	_, ok := os.LookupEnv("PREFIX_A")
+	if !ok {
+		t.FailNow()
+	}
+
+	_, ok = os.LookupEnv("PREFIX_B")
+	if ok {
+		t.FailNow()
+	}
+}
