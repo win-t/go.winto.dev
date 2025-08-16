@@ -31,6 +31,12 @@ func ErrorLogger(logger func(error)) Opt {
 	}
 }
 
+func ErrorFormatFilterPkgs(packages ...string) Opt {
+	return func(optParam) {
+		errors.SetFormatFilterPkgs(packages...)
+	}
+}
+
 // Execute f with ctx that will be cancelled by SIGINT or SIGTERM, this function call os.Exit() after f returned or panic
 //
 // if the panic value throw by f is [ExitCode], it will be used as exit code,
