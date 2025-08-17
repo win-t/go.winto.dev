@@ -37,6 +37,12 @@ func (m *Mutex) Run(f func()) {
 	f()
 }
 
+func (m *Mutex) RunE(f func() error) error {
+	m.Lock()
+	defer m.Unlock()
+	return f()
+}
+
 // RunNoPanic is similar to [Mutex.Run] but assuming f will not panic.
 //
 // if f panic, the mutex will not be unlocked.
@@ -44,6 +50,13 @@ func (m *Mutex) RunNoPanic(f func()) {
 	m.Lock()
 	f()
 	m.Unlock()
+}
+
+func (m *Mutex) RunENoPanic(f func() error) error {
+	m.Lock()
+	err := f()
+	m.Unlock()
+	return err
 }
 
 type RWMutex struct{ sync.RWMutex }
@@ -55,6 +68,12 @@ func (m *RWMutex) Run(f func()) {
 	f()
 }
 
+func (m *RWMutex) RunE(f func() error) error {
+	m.Lock()
+	defer m.Unlock()
+	return f()
+}
+
 // RunNoPanic is similar to [RWMutex.Run] but assuming f will not panic.
 //
 // if f panic, the mutex will not be unlocked.
@@ -64,11 +83,24 @@ func (m *RWMutex) RunNoPanic(f func()) {
 	m.Unlock()
 }
 
+func (m *RWMutex) RunENoPanic(f func() error) error {
+	m.Lock()
+	err := f()
+	m.Unlock()
+	return err
+}
+
 // RunRead runs a function with mutex control for read-only data.
 func (m *RWMutex) RunRead(f func()) {
 	m.RLock()
 	defer m.RUnlock()
 	f()
+}
+
+func (m *RWMutex) RunERead(f func() error) error {
+	m.RLock()
+	defer m.RUnlock()
+	return f()
 }
 
 // RunReadNoPanic is similar to [RWMutex.RunRead] but assuming f will not panic.
@@ -78,6 +110,13 @@ func (m *RWMutex) RunReadNoPanic(f func()) {
 	m.RLock()
 	f()
 	m.RUnlock()
+}
+
+func (m *RWMutex) RunEReadNoPanic(f func() error) error {
+	m.RLock()
+	err := f()
+	m.RUnlock()
+	return err
 }
 
 type WaitGroup struct{ sync.WaitGroup }
