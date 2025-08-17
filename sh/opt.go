@@ -11,7 +11,9 @@ type shellOpt struct {
 	cmd         string
 	args        []string
 	stdin       string
+	stdinBytes  []byte
 	noStdout    bool
+	stdoutDst   *[]byte
 	stderrDst   *string
 	envs        []string
 	tapCmd      []func(*exec.Cmd)
@@ -35,9 +37,24 @@ func Stdin(stdin string) OptFn {
 	}
 }
 
+// StdinBytes will override Stdin
+func StdinBytes(stdin []byte) OptFn {
+	return func(b *shellOpt) {
+		b.stdinBytes = stdin
+	}
+}
+
 func DiscardStdout() OptFn {
 	return func(b *shellOpt) {
 		b.noStdout = true
+	}
+}
+
+// StoreStdout and UseStdout are mutually exclusive
+func StoreStdout(dst *[]byte) OptFn {
+	return func(b *shellOpt) {
+		b.stdoutDst = dst
+		b.useStdout = false
 	}
 }
 
@@ -97,9 +114,11 @@ func PanicOnErr() OptFn {
 	}
 }
 
+// UseStdout and StoreStdout are mutually exclusive
 func UseStdout() OptFn {
 	return func(b *shellOpt) {
 		b.useStdout = true
+		b.stdoutDst = nil
 	}
 }
 

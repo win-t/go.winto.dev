@@ -61,6 +61,9 @@ func shell(shell string, cmd string, opts ...OptFn) string {
 	if b.stdin != "" {
 		proc.Stdin = strings.NewReader(b.stdin)
 	}
+	if b.stdinBytes != nil {
+		proc.Stdin = bytes.NewReader(b.stdinBytes)
+	}
 	if !b.noStdout {
 		if b.useStdout {
 			proc.Stdout = os.Stdout
@@ -80,7 +83,12 @@ func shell(shell string, cmd string, opts ...OptFn) string {
 	}
 
 	err := proc.Run()
-	stdout := strings.TrimRight(outBuf.String(), "\r\n") // simulate shell command substitution behavior
+	var stdout string
+	if b.stdoutDst == nil {
+		stdout = strings.TrimRight(outBuf.String(), "\r\n") // simulate shell command substitution behavior
+	} else {
+		*b.stdoutDst = outBuf.Bytes()
+	}
 	if b.stderrDst != nil && b.stderrDst != &useStderrMarker {
 		*b.stderrDst = errBuf.String()
 	}

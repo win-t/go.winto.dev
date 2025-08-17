@@ -24,10 +24,23 @@ func TestStdin(t *testing.T) {
 	if Sh(`cat`, Stdin("Hello World")) != "Hello World" {
 		t.Fatal()
 	}
+	if Sh(`cat`, StdinBytes([]byte("Hello World"))) != "Hello World" {
+		t.Fatal()
+	}
 }
 
 func TestDiscard(t *testing.T) {
 	if Sh(`echo Hello World`, DiscardStdout(), DiscardStderr()) != "" {
+		t.Fatal()
+	}
+}
+
+func TestStdout(t *testing.T) {
+	var stdout []byte
+	if Sh(`echo Hello World`, StoreStdout(&stdout)) != "" {
+		t.Fatal()
+	}
+	if string(stdout) != "Hello World\n" {
 		t.Fatal()
 	}
 }
