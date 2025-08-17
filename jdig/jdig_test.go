@@ -35,7 +35,7 @@ func TestMarshal(t *testing.T) {
 
 func TestMain(t *testing.T) {
 	v := Unmarshal(`{"a": 1, "b": [{"c": 12, "n": null}, {"c": 13, "d": true}]}`)
-	if a := Int(v, "a"); a != 1 {
+	if a := Float(v, "a"); a != 1 {
 		t.Fatal()
 	}
 	if a := Float(v, "a"); a != 1 {
@@ -44,13 +44,13 @@ func TestMain(t *testing.T) {
 	if a := String(v, "a"); a != "" {
 		t.Fatal()
 	}
-	if a := Int(v, "b", "y", "z"); a != 0 {
+	if a := Float(v, "b", "y", "z"); a != 0 {
 		t.Fatal()
 	}
 	if !IsNull(v, "zz") {
 		t.Fatal()
 	}
-	if Int(v, "b", 0, "c") != 12 {
+	if Float(v, "b", 0, "c") != 12 {
 		t.Fatal()
 	}
 	if !IsNull(v, "b", 0, "n") {
@@ -63,6 +63,35 @@ func TestMain(t *testing.T) {
 		t.Fatal()
 	}
 	if Obj(v, "b", 1) == nil {
+		t.Fatal()
+	}
+}
+
+func TestRecursiveDeleteKeyIfEmpty(t *testing.T) {
+	v := map[string]any{
+		"a": nil,
+		"b": 0,
+		"c": 0.0,
+		"d": []any{},
+		"e": map[string]any{},
+		"f": "",
+		"g": []any{
+			1,
+			map[string]any{},
+			map[string]any{
+				"a": 0,
+				"b": "something",
+			},
+		},
+	}
+	RecursiveDeleteKeyIfEmpty(v)
+	if len(v) != 1 {
+		t.Fatal()
+	}
+	if len(Arr(v, "g")) != 3 {
+		t.Fatal()
+	}
+	if len(Obj(v, "g", 2)) != 1 {
 		t.Fatal()
 	}
 }

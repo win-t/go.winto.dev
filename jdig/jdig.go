@@ -3,6 +3,7 @@ package jdig
 
 import (
 	"encoding/json"
+	"reflect"
 )
 
 type IError = error
@@ -84,14 +85,36 @@ func Float(v any, keys ...any) float64 {
 	return get[float64](v, keys...)
 }
 
-func Int(v any, keys ...any) int {
-	return int(Float(v, keys...))
-}
-
 func Bool(v any, keys ...any) bool {
 	return get[bool](v, keys...)
 }
 
 func IsNull(v any, keys ...any) bool {
 	return Any(v, keys...) == nil
+}
+
+func RecursiveDeleteKeyIfEmpty(v any) {
+	if v == nil {
+		return
+	}
+	switch v := v.(type) {
+	case map[string]any:
+		for k, vk := range v {
+			if vk == nil {
+				delete(v, k)
+			} else if c, ok := vk.(map[string]any); ok && len(c) == 0 {
+				delete(v, k)
+			} else if c, ok := vk.([]any); ok && len(c) == 0 {
+				delete(v, k)
+			} else if reflect.ValueOf(vk).IsZero() {
+				delete(v, k)
+			} else {
+				RecursiveDeleteKeyIfEmpty(vk)
+			}
+		}
+	case []any:
+		for i := range v {
+			RecursiveDeleteKeyIfEmpty(v[i])
+		}
+	}
 }
