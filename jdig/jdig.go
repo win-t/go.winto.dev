@@ -100,6 +100,7 @@ func RecursiveDeleteKeyIfEmpty(v any) {
 	switch v := v.(type) {
 	case map[string]any:
 		for k, vk := range v {
+			RecursiveDeleteKeyIfEmpty(vk)
 			if vk == nil {
 				delete(v, k)
 			} else if c, ok := vk.(map[string]any); ok && len(c) == 0 {
@@ -108,8 +109,6 @@ func RecursiveDeleteKeyIfEmpty(v any) {
 				delete(v, k)
 			} else if reflect.ValueOf(vk).IsZero() {
 				delete(v, k)
-			} else {
-				RecursiveDeleteKeyIfEmpty(vk)
 			}
 		}
 	case []any:

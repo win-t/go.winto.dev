@@ -74,6 +74,9 @@ func TestRecursiveDeleteKeyIfEmpty(t *testing.T) {
 		"c": 0.0,
 		"d": []any{},
 		"e": map[string]any{},
+		"e2": map[string]any{
+			"a": nil,
+		},
 		"f": "",
 		"g": []any{
 			1,
