@@ -44,7 +44,7 @@ type DB interface {
 }
 
 // Exec execute the stmts in order. It will skip if the stmt already executed.
-func Exec(ctx context.Context, db DB, stmts []string, cb map[string]func(context.Context, DB) error) error {
+func Exec(ctx context.Context, db DB, stmts []string, cb map[int]func(context.Context, DB) error) error {
 	// attempt to create the table and ignore the error
 	db.ExecContext(ctx, "create table go_winto_dev_sqlmigrate (i integer primary key, c integer)")
 
@@ -59,7 +59,7 @@ next_stmt:
 				// we won the election, execute the statement
 				var cbFunc func(context.Context, DB) error
 				if len(cb) > 0 {
-					cbFunc = cb[stmt]
+					cbFunc = cb[i]
 				}
 				if err := run(ctx, db, i, stmt, checksum, cbFunc); err != nil {
 					return err

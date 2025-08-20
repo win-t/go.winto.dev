@@ -186,8 +186,8 @@ func TestCB(t *testing.T) {
 		// 0
 		"select 1",
 	}
-	cb := map[string]func(context.Context, DB) error{
-		stmts[0]: func(ctx context.Context, db DB) error {
+	cb := map[int]func(context.Context, DB) error{
+		0: func(ctx context.Context, db DB) error {
 			count++
 			return nil
 		},
