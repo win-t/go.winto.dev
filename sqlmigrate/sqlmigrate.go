@@ -44,7 +44,7 @@ type DB interface {
 }
 
 // Exec execute the stmts in order. It will skip if the stmt already executed.
-func Exec(ctx context.Context, db DB, stmts []string) error {
+func Exec(ctx context.Context, db DB, stmts []string, cb map[string]func(context.Context, DB) error) error {
 	// attempt to create the table and ignore the error
 	db.ExecContext(ctx, "create table go_winto_dev_sqlmigrate (i integer primary key, c integer)")
 
@@ -57,7 +57,11 @@ next_stmt:
 			_, err := db.ExecContext(ctx, fmt.Sprintf("insert into go_winto_dev_sqlmigrate (i, c) values (%d, null)", i))
 			if err == nil {
 				// we won the election, execute the statement
-				if err := run(ctx, db, i, stmt, checksum); err != nil {
+				var cbFunc func(context.Context, DB) error
+				if len(cb) > 0 {
+					cbFunc = cb[stmt]
+				}
+				if err := run(ctx, db, i, stmt, checksum, cbFunc); err != nil {
 					return err
 				}
 				continue next_stmt
@@ -97,7 +101,7 @@ next_stmt:
 }
 
 // when this function return, the checksum on the row must be filled or the row must be deleted
-func run(ctx context.Context, db DB, i int, stmt string, checksum int32) (err error) {
+func run(ctx context.Context, db DB, i int, stmt string, checksum int32, cb func(context.Context, DB) error) (err error) {
 	success := false
 	defer func() {
 		if !success {
@@ -113,6 +117,11 @@ func run(ctx context.Context, db DB, i int, stmt string, checksum int32) (err er
 		return &StmtExecError{
 			StmtIndex: i,
 			Err:       err,
+		}
+	}
+	if cb != nil {
+		if err := cb(ctx, db); err != nil {
+			return err
 		}
 	}
 	success = true

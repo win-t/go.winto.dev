@@ -26,13 +26,13 @@ func TestNormal(t *testing.T) {
 	}
 
 	// first run
-	err = Exec(context.Background(), db, stmts)
+	err = Exec(context.Background(), db, stmts, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// second run should be nop
-	err = Exec(context.Background(), db, stmts)
+	err = Exec(context.Background(), db, stmts, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestDiffStmtMustFail(t *testing.T) {
 		"create table t1(k integer primary key, v integer)",
 		"create table t2(k integer primary key, v integer)",
 		"create table t3(k integer primary key, v integer)",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestDiffStmtMustFail(t *testing.T) {
 		"create table t1(k integer primary key, v integer)",
 		"create table t2_diff(k integer primary key, v integer)",
 		"create table t3(k integer primary key, v integer)",
-	})
+	}, nil)
 	realErr := (*ChecksumMismatchError)(nil)
 	if !errors.As(err, &realErr) {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func TestUpToFailStmt(t *testing.T) {
 		"create table t2(k integer primary key, v integer)",
 		"create table t2(k integer primary key, v integer)",
 		"create table t3(k integer primary key, v integer)",
-	})
+	}, nil)
 	realErr := (*StmtExecError)(nil)
 	if !errors.As(err, &realErr) {
 		t.Fatal(err)
@@ -118,7 +118,7 @@ func TestUpToFailStmt(t *testing.T) {
 		"create table t1(k integer primary key, v integer)",
 		"create table t2(k integer primary key, v integer)",
 		"create table t3(k integer primary key, v integer)",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestLeaderGiveUp(t *testing.T) {
 
 	err = Exec(context.Background(), db, []string{
 		"create table t1(k integer primary key, v integer)",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestLeaderGiveUp(t *testing.T) {
 		"create table t1(k integer primary key, v integer)",
 		"create table t2(k integer primary key, v integer)",
 		"create table t3(k integer primary key, v integer)",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,43 @@ func TestLeaderGiveUp(t *testing.T) {
 	if tableCount != 4 {
 		t.Fatalf("expected 4 tables, got %d", tableCount)
 	}
+}
 
+func TestCB(t *testing.T) {
+	db, err := sql.Open("sqlite3", "file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	count := 0
+	stmts := []string{
+		// 0
+		"select 1",
+	}
+	cb := map[string]func(context.Context, DB) error{
+		stmts[0]: func(ctx context.Context, db DB) error {
+			count++
+			return nil
+		},
+	}
+
+	err = Exec(context.Background(), db, stmts, cb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatal("callback not called")
+	}
+
+	stmts = append(stmts, "select 2")
+	err = Exec(context.Background(), db, stmts, cb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatal("callback is called twice")
+	}
 }
 
 func check(err error) {
