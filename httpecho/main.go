@@ -25,16 +25,18 @@ func main() {
 
 	id := os.Getenv("ID")
 	if id == "" {
-		_, _ = io.ReadFull(rand.Reader, buf[:])
+		_, err := io.ReadFull(rand.Reader, buf[:])
+		check(err)
 		id = base64.RawURLEncoding.EncodeToString(buf[:])
 	}
 
-	_, _ = io.ReadFull(rand.Reader, buf[:])
+	_, err := io.ReadFull(rand.Reader, buf[:])
+	check(err)
 	instance := base64.RawURLEncoding.EncodeToString(buf[:])
 
 	runExtraUDPEcho(port, id, instance)
 
-	_, err := strconv.Atoi(port)
+	_, err = strconv.Atoi(port)
 	check(err)
 
 	cert := os.Getenv("TLS_CERT")
@@ -49,7 +51,7 @@ func main() {
 
 func handler(id, instance string) http.HandlerFunc {
 	var pool sync.Pool
-	const maxSize = 6 << 20        // 6MiB, assuming header is 1MiB and body is 6MiB
+	const maxSize = 6 << 20        // 6MiB, assuming header is 1MiB and body is 5MiB
 	concurrencyLimit := int32(100) // set rough upper limit of memory consumption, 100 * 6MiB = 600MiB
 
 	return func(w http.ResponseWriter, r *http.Request) {
