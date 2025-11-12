@@ -1,3 +1,4 @@
+// Package logtagger provides a writer that tags each line with a specified tag.
 package logtagger
 
 import (
@@ -10,6 +11,9 @@ type LogTagger struct {
 	Dst io.Writer
 }
 
+// New creates a new LogTagger that writes to the given destination.
+//
+// The Writer returned by [LogTagger.Tag] can be used concurrently.
 func New(dst io.Writer) *LogTagger {
 	return &LogTagger{Dst: dst}
 }
@@ -19,6 +23,7 @@ type Writer struct {
 	tag string
 }
 
+// Tag returns a Writer that tags each line with the specified tag.
 func (l *LogTagger) Tag(tag string) *Writer {
 	return &Writer{
 		LogTagger: l,
