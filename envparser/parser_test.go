@@ -98,7 +98,7 @@ func TestListEnvName(t *testing.T) {
 		IntSlice   []int
 		Dur        time.Duration
 		Loc        *time.Location
-		Skip       string `env:""`
+		Skip       string `env:",skip"`
 	}
 	names := envparser.ListEnvName(&config)
 	if !reflect.DeepEqual(names, []string{
@@ -178,6 +178,99 @@ func TestNoUnset(t *testing.T) {
 
 	_, ok = os.LookupEnv("PREFIX_B")
 	if ok {
+		t.FailNow()
+	}
+}
+
+func TestSkip(t *testing.T) {
+	fakeEnv := map[string]string{
+		"AA": "10",
+		"BB": "20",
+	}
+	for k, v := range fakeEnv {
+		os.Setenv(k, v)
+	}
+	defer func() {
+		for k := range fakeEnv {
+			os.Unsetenv(k)
+		}
+	}()
+
+	var config struct {
+		AA int `env:",skip"`
+		BB int
+	}
+	config.AA = 100
+	config.BB = 200
+
+	err := envparser.Unmarshal(&config)
+	if err != nil {
+		t.FailNow()
+	}
+
+	if config.AA != 100 || config.BB != 20 {
+		t.FailNow()
+	}
+}
+
+func TestRequired(t *testing.T) {
+	fakeEnv := map[string]string{
+		"AA": "10",
+	}
+	for k, v := range fakeEnv {
+		os.Setenv(k, v)
+	}
+	defer func() {
+		for k := range fakeEnv {
+			os.Unsetenv(k)
+		}
+	}()
+	var config struct {
+		AA int `env:",required"`
+	}
+	err := envparser.Unmarshal(&config)
+	if err != nil {
+		t.FailNow()
+	}
+	if config.AA != 10 {
+		t.FailNow()
+	}
+}
+
+func TestRequiredButMissing(t *testing.T) {
+	fakeEnv := map[string]string{
+		"AA": "10",
+	}
+	for k, v := range fakeEnv {
+		os.Setenv(k, v)
+	}
+	defer func() {
+		for k := range fakeEnv {
+			os.Unsetenv(k)
+		}
+	}()
+	var config struct {
+		BB int `env:",required"`
+	}
+	err := envparser.Unmarshal(&config)
+	if err == nil {
+		t.FailNow()
+	}
+
+	var parseError *envparser.ParseError
+	if !errors.As(err, &parseError) {
+		t.FailNow()
+	}
+
+	if len(parseError.Items) != 1 {
+		t.FailNow()
+	}
+
+	if parseError.Items[0].Key != "BB" {
+		t.FailNow()
+	}
+
+	if parseError.Items[0].Cause != envparser.ErrCauseRequired {
 		t.FailNow()
 	}
 }

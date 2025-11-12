@@ -1,6 +1,7 @@
 package envparser
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -12,6 +13,8 @@ type ParseError struct {
 		Cause error
 	}
 }
+
+var ErrCauseRequired = errors.New("required but not specified")
 
 func (p *ParseError) Error() string {
 	points := make([]string, len(p.Items))

@@ -12,9 +12,10 @@ import (
 // target must be non-nil pointer to struct.
 //
 // "env" tag in each field in target struct will be fetched from environment variable.
-// If "env" tag is empty string or field is not exported, the field is skipped.
-// If "env" tag is not found, field name is used.
+// If "env" tag is not specified or specified but no name specified, field name will be used as env name.
 // If "env" tag has "nounset" option, the env will be kept, otherwise it will be unset.
+// If "env" tag has "skip" option, the field will be skipped.
+// If "env" tag has "required" option, it will error if the env is not set.
 //
 // if the field implement [Unmarshaler] interface, it will be used.
 func Unmarshal(target any) error {
@@ -29,17 +30,20 @@ func UnmarshalWithPrefix(target any, prefix string) error {
 
 	for i, t := 0, targetVal.Type(); i < t.NumField(); i++ {
 		envConfig := lookupEnvConfig(targetVal.Type().Field(i))
-		if envConfig.name == "" {
+		if envConfig.skip {
 			continue
 		}
 
-		key := envConfig.name
-		val, ok := os.LookupEnv(prefix + key)
+		key := prefix + envConfig.name
+		val, ok := os.LookupEnv(key)
 		if !ok {
+			if envConfig.required {
+				parseError.append(key, "", ErrCauseRequired)
+			}
 			continue
 		}
 		if !envConfig.noUnset {
-			os.Unsetenv(prefix + key)
+			os.Unsetenv(key)
 		}
 
 		f := targetVal.Field(i)
@@ -90,31 +94,40 @@ func UnmarshalWithPrefix(target any, prefix string) error {
 }
 
 type envConfig struct {
-	name    string
-	noUnset bool
+	name     string
+	noUnset  bool
+	skip     bool
+	required bool
 }
 
-func lookupEnvConfig(f reflect.StructField) envConfig {
+func lookupEnvConfig(f reflect.StructField) (c envConfig) {
 	if !f.IsExported() {
-		return envConfig{}
+		return c
 	}
 
 	config, ok := f.Tag.Lookup("env")
-	if ok {
-		configParts := strings.Split(config, ",")
-		name := configParts[0]
-		noUnset := false
-		for _, c := range configParts[1:] {
-			if c == "nounset" {
-				noUnset = true
-			} else if c != "" {
-				panic("envparser: unknown tag option: " + c)
-			}
-		}
-		return envConfig{name: name, noUnset: noUnset}
+	if !ok {
+		c.name = f.Name
+		return c
+	}
+	configParts := strings.Split(config, ",")
+	c.name = configParts[0]
+	if c.name == "" {
+		c.name = f.Name
 	}
 
-	return envConfig{name: f.Name}
+	for _, opt := range configParts[1:] {
+		if opt == "nounset" {
+			c.noUnset = true
+		} else if opt == "skip" {
+			c.skip = true
+		} else if opt == "required" {
+			c.required = true
+		} else if opt != "" {
+			panic("envparser: unknown tag option: " + opt)
+		}
+	}
+	return c
 }
 
 func valueOfPointerToStruct(target any) reflect.Value {
@@ -138,7 +151,7 @@ func ListEnvName(target any) []string {
 	var ret []string
 	for i, t := 0, targetVal.Type(); i < t.NumField(); i++ {
 		envConfig := lookupEnvConfig(targetVal.Type().Field(i))
-		if envConfig.name == "" {
+		if envConfig.skip {
 			continue
 		}
 
