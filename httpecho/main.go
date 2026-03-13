@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"unicode/utf8"
@@ -54,6 +55,37 @@ func handler(id, instance string) http.HandlerFunc {
 	const maxSize = 6 << 20        // 6MiB, assuming header is 1MiB and body is 5MiB
 	concurrencyLimit := int32(100) // set rough upper limit of memory consumption, 100 * 6MiB = 600MiB
 
+	extraEnv := make(map[string]string)
+
+	for _, env := range os.Environ() {
+		if env == "HTTP_X_ID" ||
+			env == "HTTP_X_INSTANCE" ||
+			env == "HTTP_X_LOCAL_ADDR" ||
+			env == "HTTP_X_REMOTE_ADDR" ||
+			env == "HTTP_X_TRUNCATED" {
+			continue
+		}
+		if strings.HasPrefix(env, "HTTP_X_") {
+			envParts := strings.SplitN(env, "=", 2)
+			if len(envParts) == 2 {
+				key := string(envParts[0][len("HTTP_"):])
+				key = strings.Map(func(r rune) rune {
+					if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+						return r
+					}
+					return '_'
+				}, key)
+
+				keyParts := strings.Split(key, "_")
+				for i := range keyParts {
+					keyParts[i] = strings.Title(keyParts[i])
+				}
+
+				extraEnv[strings.Join(keyParts, "-")] = envParts[1]
+			}
+		}
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("got http request: %s > %s %s\n", r.RemoteAddr, r.Method, r.URL.EscapedPath())
 
@@ -67,6 +99,10 @@ func handler(id, instance string) http.HandlerFunc {
 
 		if r.RemoteAddr != "" {
 			w.Header().Add("X-Remote-Addr", r.RemoteAddr)
+		}
+
+		for k, v := range extraEnv {
+			w.Header().Add(k, v)
 		}
 
 		c := atomic.AddInt32(&concurrencyLimit, -1)
