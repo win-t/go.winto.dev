@@ -91,11 +91,7 @@ func Exec(f func(ctx context.Context), opts ...Opt) {
 	}
 
 	exitCode = 1
-	if errLogger != nil {
-		errLogger(err)
-	} else {
-		fmt.Fprintln(os.Stderr, strings.TrimSuffix(errors.Format(err), "\n"))
-	}
+	doLogError(err)
 }
 
 type ExitCode int
@@ -112,4 +108,30 @@ func Interrupted() os.Signal {
 	ret := sig
 	mu.RUnlock()
 	return ret
+}
+
+// Run f in a new goroutine, catch panic and log it
+func Go(f func()) {
+	mu.Lock()
+	defer mu.Unlock()
+	if !called {
+		fmt.Fprintln(os.Stderr, "FATAL: mainpkg.Go must be called after mainpkg.Exec")
+		os.Exit(1)
+	}
+
+	go func() {
+		err := errors.Catch0(f)
+		if err == nil {
+			return
+		}
+		doLogError(err)
+	}()
+}
+
+func doLogError(err error) {
+	if errLogger != nil {
+		errLogger(err)
+	} else {
+		fmt.Fprintln(os.Stderr, strings.TrimSuffix(errors.Format(err), "\n"))
+	}
 }
