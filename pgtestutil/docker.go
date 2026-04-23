@@ -1,11 +1,11 @@
 package pgtestutil
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/url"
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -19,52 +19,37 @@ func NewDocker(pgMajorVersion int) (*Manager, error) {
 		image = fmt.Sprintf("postgres:%d-alpine", pgMajorVersion)
 	}
 
-	containerName := "pgtestutil" + randomHex()
+	containerName := "pgtestutil-" + randomHex()
 	adminPass := "p" + randomHex()
+
+	port, stopProxy, err := runProxy(containerName)
+	if err != nil {
+		return nil, err
+	}
 
 	exec.Command(
 		"docker", "run",
 		"-d", "--name", containerName,
 		"--restart", "unless-stopped",
 		"-l", "go.winto.dev/pgtestutil=true",
-		"-p", "5432",
 		"-e", "POSTGRES_PASSWORD="+adminPass,
 		image,
 	).Run()
 
-	closeFn := func() { exec.Command("docker", "rm", "-fv", containerName).Run() }
-
-	until := time.Now().Add(300 * time.Second)
-
-	var endpoint string
-	for {
-		out, err := exec.Command(
-			"docker", "inspect", containerName,
-			"-f", `{{ with (index (index .NetworkSettings.Ports "5432/tcp") 0) }}{{ .HostIp }}#{{ .HostPort }}{{ end }}`,
-		).Output()
-		if err == nil {
-			parts := strings.Split(strings.TrimSpace(string(out)), "#")
-			if parts[0] == "0.0.0.0" || parts[0] == "::" {
-				parts[0] = "localhost"
-			}
-			endpoint = net.JoinHostPort(parts[0], parts[1])
-			break
-		}
-		if time.Now().After(until) {
-			closeFn()
-			return nil, fmt.Errorf("failed to inspect docker container port mapping: %w", err)
-		}
-		time.Sleep(1 * time.Second)
+	closeFn := func() {
+		stopProxy()
+		exec.Command("docker", "rm", "-fv", containerName).Run()
 	}
 
 	target := &url.URL{
 		Scheme:   "postgres",
 		User:     url.UserPassword("postgres", adminPass),
-		Host:     endpoint,
+		Host:     fmt.Sprintf("localhost:%d", port),
 		Path:     "postgres",
 		RawQuery: "sslmode=disable",
 	}
 
+	until := time.Now().Add(30 * time.Second)
 	for {
 		out, _ := exec.Command("docker", "exec", containerName, "sh", "-c", "pg_isready >/dev/null 2>&1 && printf ready").Output()
 		if string(out) == "ready" {
@@ -82,4 +67,41 @@ func NewDocker(pgMajorVersion int) (*Manager, error) {
 
 func DockerAvailable() bool {
 	return exec.Command("docker", "info").Run() == nil
+}
+
+func runProxy(containerName string) (int, func(), error) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	l, err := net.ListenTCP("tcp", nil)
+	if err != nil {
+		return 0, cancel, err
+	}
+	go func() {
+		<-ctx.Done()
+		l.Close()
+	}()
+
+	go func() {
+		for {
+			conn, err := l.Accept()
+			if ctx.Err() != nil {
+				return
+			}
+			if err != nil {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			go proxy(ctx, conn, containerName)
+		}
+	}()
+
+	return l.Addr().(*net.TCPAddr).Port, cancel, nil
+}
+
+func proxy(ctx context.Context, conn net.Conn, containerName string) {
+	defer conn.Close()
+	cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "nc", "localhost", "5432")
+	cmd.Stdin = conn
+	cmd.Stdout = conn
+	cmd.Run()
 }
