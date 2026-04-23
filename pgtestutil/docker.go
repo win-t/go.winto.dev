@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func NewDocker(pgMajorVersion int) (*Manager, error) {
+func NewDocker(driverName string, pgMajorVersion int) (*Manager, error) {
 	if !DockerAvailable() {
 		return nil, fmt.Errorf("docker is not available")
 	}
@@ -23,36 +23,31 @@ func NewDocker(pgMajorVersion int) (*Manager, error) {
 	containerName := "pgtestutil-" + randomHex()
 	adminPass := "p" + randomHex()
 
-	port, stopProxy, err := runProxy(containerName)
-	if err != nil {
-		return nil, err
-	}
+	ctx, cancel := context.WithCancel(context.Background())
 
 	exec.Command(
 		"docker", "run",
 		"-d", "--name", containerName,
-		"--restart", "unless-stopped",
 		"-l", "go.winto.dev/pgtestutil=true",
 		"-e", "POSTGRES_PASSWORD="+adminPass,
 		image,
 	).Run()
 
 	closeFn := func() {
-		stopProxy()
+		cancel()
 		exec.Command("docker", "rm", "-fv", containerName).Run()
-	}
-
-	target := &url.URL{
-		Scheme:   "postgres",
-		User:     url.UserPassword("postgres", adminPass),
-		Host:     fmt.Sprintf("localhost:%d", port),
-		Path:     "postgres",
-		RawQuery: "sslmode=disable",
 	}
 
 	until := time.Now().Add(30 * time.Second)
 	for {
-		out, _ := exec.Command("docker", "exec", containerName, "sh", "-c", "pg_isready >/dev/null 2>&1 && printf ready").Output()
+		out, _ := exec.Command("docker", "exec", containerName, "sh", "-ceu", `
+			if ! command -v socat > /dev/null; then
+				apk add -U socat > /dev/null
+			fi
+			if pg_isready -U postgres > /dev/null; then
+				printf "ready"
+			fi
+		`).Output()
 		if string(out) == "ready" {
 			break
 		}
@@ -63,24 +58,33 @@ func NewDocker(pgMajorVersion int) (*Manager, error) {
 		time.Sleep(1 * time.Second)
 	}
 
-	return newManager(target.String(), closeFn, true)
+	port, err := proxyServer(ctx, containerName)
+	if err != nil {
+		closeFn()
+		return nil, err
+	}
+
+	target := &url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword("postgres", adminPass),
+		Host:     fmt.Sprintf("localhost:%d", port),
+		Path:     "postgres",
+		RawQuery: "sslmode=disable",
+	}
+
+	return newManager(driverName, target.String(), closeFn, true)
 }
 
 func DockerAvailable() bool {
 	return exec.Command("docker", "info").Run() == nil
 }
 
-func runProxy(containerName string) (int, func(), error) {
-	ctx, cancel := context.WithCancel(context.Background())
-
+func proxyServer(ctx context.Context, containerName string) (int, error) {
 	l, err := net.ListenTCP("tcp", nil)
 	if err != nil {
-		return 0, cancel, err
+		return 0, err
 	}
-	go func() {
-		<-ctx.Done()
-		l.Close()
-	}()
+	go func() { <-ctx.Done(); l.Close() }()
 
 	go func() {
 		for {
@@ -96,16 +100,50 @@ func runProxy(containerName string) (int, func(), error) {
 		}
 	}()
 
-	return l.Addr().(*net.TCPAddr).Port, cancel, nil
+	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
 func proxy(ctx context.Context, conn *net.TCPConn, containerName string) {
-	defer conn.Close()
-	cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "nc", "localhost", "5432")
-	cmd.Stdin = conn
-	cmd.Stdout = conn
-	err := cmd.Run()
-	if err != nil && ctx.Err() == nil {
-		fmt.Fprintf(os.Stderr, "error starting proxy: %v\n", err)
+	connClosed := false
+	defer func() {
+		if !connClosed {
+			conn.Close()
+		}
+	}()
+
+	f, err := conn.File()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "pgtestutil: failed to get unerlying tcp conn file: %v\n", err)
+		return
+	}
+	fClosed := false
+	defer func() {
+		if !fClosed {
+			f.Close()
+		}
+	}()
+
+	cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "socat", "-", "TCP:127.0.0.1:5432")
+	cmd.Stdin = f
+	cmd.Stdout = f
+	err = cmd.Start()
+	if err != nil {
+		if ctx.Err() == nil {
+			fmt.Fprintf(os.Stderr, "pgtestutil: error starting proxy: %v\n", err)
+		}
+		return
+	}
+
+	conn.Close()
+	connClosed = true
+
+	f.Close()
+	fClosed = true
+
+	err = cmd.Wait()
+	if err != nil {
+		if ctx.Err() == nil {
+			fmt.Fprintf(os.Stderr, "pgtestutil: error waiting proxy: %v\n", err)
+		}
 	}
 }

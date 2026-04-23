@@ -21,17 +21,17 @@ type Manager struct {
 	created map[string]struct{}
 }
 
-func New(adminConn string) (*Manager, error) {
-	return newManager(adminConn, nil, false)
+func New(driverName string, dataSourceName string) (*Manager, error) {
+	return newManager(driverName, dataSourceName, nil, false)
 }
 
-func newManager(adminConn string, closeHook func(), skipCleanup bool) (*Manager, error) {
+func newManager(driverName string, adminConn string, closeHook func(), skipCleanup bool) (*Manager, error) {
 	adminURL, err := url.Parse(adminConn)
 	if err != nil {
 		return nil, err
 	}
 
-	adminDB, err := sql.Open("postgres", adminConn)
+	adminDB, err := sql.Open(driverName, adminConn)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (m *Manager) Destroy(conn string) {
 }
 
 func randomHex() string {
-	data := [10]byte{}
+	data := [8]byte{}
 	for {
 		_, err := rand.Read(data[:])
 		if err == nil {

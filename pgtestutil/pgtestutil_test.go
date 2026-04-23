@@ -14,11 +14,11 @@ func TestDocker(t *testing.T) {
 		return
 	}
 
-	m, err := pgtestutil.NewDocker(0)
+	m, err := pgtestutil.NewDocker("postgres", 0)
 	check(err)
 	defer m.Close()
 
-	m2, err := pgtestutil.New(m.AdminURL())
+	m2, err := pgtestutil.New("postgres", m.AdminURL())
 	check(err)
 	defer m2.Close()
 
