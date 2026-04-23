@@ -73,10 +73,11 @@ func (m *Manager) Close() error {
 		}
 	}
 
+	err := m.adminDB.Close()
 	if m.closeHook != nil {
 		m.closeHook()
 	}
-	return m.adminDB.Close()
+	return err
 }
 
 func (m *Manager) Create() (string, error) {

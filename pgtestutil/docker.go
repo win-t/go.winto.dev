@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"os/exec"
 	"time"
 )
@@ -83,7 +84,7 @@ func runProxy(containerName string) (int, func(), error) {
 
 	go func() {
 		for {
-			conn, err := l.Accept()
+			conn, err := l.AcceptTCP()
 			if ctx.Err() != nil {
 				return
 			}
@@ -98,10 +99,13 @@ func runProxy(containerName string) (int, func(), error) {
 	return l.Addr().(*net.TCPAddr).Port, cancel, nil
 }
 
-func proxy(ctx context.Context, conn net.Conn, containerName string) {
+func proxy(ctx context.Context, conn *net.TCPConn, containerName string) {
 	defer conn.Close()
 	cmd := exec.CommandContext(ctx, "docker", "exec", "-i", containerName, "nc", "localhost", "5432")
 	cmd.Stdin = conn
 	cmd.Stdout = conn
-	cmd.Run()
+	err := cmd.Run()
+	if err != nil && ctx.Err() == nil {
+		fmt.Fprintf(os.Stderr, "error starting proxy: %v\n", err)
+	}
 }
