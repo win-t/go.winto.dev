@@ -24,8 +24,6 @@ func NewDocker(driverName string, pgMajorVersion int) (*Manager, error) {
 	containerName := "pgtestutil-" + randomHex()
 	adminPass := "p" + randomHex()
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	exec.Command(
 		"docker", "run",
 		"-d", "--name", containerName,
@@ -33,6 +31,8 @@ func NewDocker(driverName string, pgMajorVersion int) (*Manager, error) {
 		"-e", "POSTGRES_PASSWORD="+adminPass,
 		image,
 	).Run()
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	closeFn := func() {
 		cancel()
@@ -105,9 +105,8 @@ func proxyServer(ctx context.Context, containerName string) (int, error) {
 }
 
 func proxy(ctx context.Context, conn *net.TCPConn, containerName string) {
-	connClosed := false
 	defer func() {
-		if !connClosed {
+		if conn != nil {
 			conn.Close()
 		}
 	}()
@@ -117,9 +116,8 @@ func proxy(ctx context.Context, conn *net.TCPConn, containerName string) {
 		fmt.Fprintf(os.Stderr, "pgtestutil: failed to get unerlying tcp conn file: %v\n", err)
 		return
 	}
-	fClosed := false
 	defer func() {
-		if !fClosed {
+		if f != nil {
 			f.Close()
 		}
 	}()
@@ -136,10 +134,10 @@ func proxy(ctx context.Context, conn *net.TCPConn, containerName string) {
 	}
 
 	conn.Close()
-	connClosed = true
+	conn = nil
 
 	f.Close()
-	fClosed = true
+	f = nil
 
 	err = cmd.Wait()
 	if err != nil {

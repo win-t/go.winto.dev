@@ -35,6 +35,7 @@ func newManager(driverName string, adminConn string, closeHook func(), skipClean
 	if err != nil {
 		return nil, err
 	}
+	adminDB.SetMaxOpenConns(2)
 
 	return &Manager{
 		adminURL:    adminURL,
@@ -54,14 +55,11 @@ func (m *Manager) Close() error {
 		for {
 			var created []string
 
-			func() {
-				m.mu.Lock()
-				defer m.mu.Unlock()
-
-				for conn := range m.created {
-					created = append(created, conn)
-				}
-			}()
+			m.mu.Lock()
+			for conn := range m.created {
+				created = append(created, conn)
+			}
+			m.mu.Unlock()
 
 			if len(created) == 0 {
 				break
@@ -73,17 +71,14 @@ func (m *Manager) Close() error {
 		}
 	}
 
-	err := m.adminDB.Close()
+	m.adminDB.Close()
 	if m.closeHook != nil {
 		m.closeHook()
 	}
-	return err
+	return nil
 }
 
 func (m *Manager) Create() (string, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	user := "u" + randomHex()
 	pass := "p" + randomHex()
 	dbname := "d" + randomHex()
@@ -105,16 +100,18 @@ func (m *Manager) Create() (string, error) {
 
 	conn := connURL.String()
 
+	m.mu.Lock()
 	m.created[conn] = struct{}{}
+	m.mu.Unlock()
 
 	return conn, nil
 }
 
 func (m *Manager) Destroy(conn string) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if _, ok := m.created[conn]; !ok {
+	_, ok := m.created[conn]
+	m.mu.Unlock()
+	if !ok {
 		return
 	}
 
@@ -130,7 +127,9 @@ func (m *Manager) Destroy(conn string) {
 	m.dropDB(dbname)
 	m.dropUser(user)
 
+	m.mu.Lock()
 	delete(m.created, conn)
+	m.mu.Unlock()
 }
 
 func randomHex() string {
