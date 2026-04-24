@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// Create temporary PostgresSQL container and return a Manager connected to it.
 func NewDocker(driverName string, pgMajorVersion int) (*Manager, error) {
 	if !DockerAvailable() {
 		return nil, fmt.Errorf("docker is not available")

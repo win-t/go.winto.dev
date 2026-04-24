@@ -1,3 +1,7 @@
+// Package pgtestutil provides utilities for managing PostgreSQL databases in tests.
+//
+// The manager will maintain single admin connection to the database cluster and then later can create/destroy database on demand.
+// All created database will be cleaned up when the manager is closed.
 package pgtestutil
 
 import (
@@ -21,8 +25,10 @@ type Manager struct {
 	created map[string]struct{}
 }
 
-func New(driverName string, dataSourceName string) (*Manager, error) {
-	return newManager(driverName, dataSourceName, nil, false)
+// New creates a new Manager with the given driver name and dsn.
+// The parameters all equivalent to [database/sql.Open] function
+func New(driver string, adminDSN string) (*Manager, error) {
+	return newManager(driver, adminDSN, nil, false)
 }
 
 func newManager(driverName string, adminConn string, closeHook func(), skipCleanup bool) (*Manager, error) {
@@ -46,10 +52,12 @@ func newManager(driverName string, adminConn string, closeHook func(), skipClean
 	}, nil
 }
 
-func (m *Manager) AdminURL() string {
+func (m *Manager) AdminDSN() string {
 	return m.adminURL.String()
 }
 
+// Close the manager and cleanup all create databases.
+// This function must be called at the end of Manager lifetime to avoid resource leak.
 func (m *Manager) Close() error {
 	if !m.skipCleanup {
 		for {
@@ -78,6 +86,7 @@ func (m *Manager) Close() error {
 	return nil
 }
 
+// Create a new database and will return the DSN for it.
 func (m *Manager) Create() (string, error) {
 	user := "u" + randomHex()
 	pass := "p" + randomHex()
@@ -107,15 +116,16 @@ func (m *Manager) Create() (string, error) {
 	return conn, nil
 }
 
-func (m *Manager) Destroy(conn string) {
+// Destroy the database created by [pgtestutil.Create].
+func (m *Manager) Destroy(dsn string) {
 	m.mu.Lock()
-	_, ok := m.created[conn]
+	_, ok := m.created[dsn]
 	m.mu.Unlock()
 	if !ok {
 		return
 	}
 
-	uri, err := url.Parse(conn)
+	uri, err := url.Parse(dsn)
 	if err != nil {
 		return
 	}
@@ -128,7 +138,7 @@ func (m *Manager) Destroy(conn string) {
 	m.dropUser(user)
 
 	m.mu.Lock()
-	delete(m.created, conn)
+	delete(m.created, dsn)
 	m.mu.Unlock()
 }
 

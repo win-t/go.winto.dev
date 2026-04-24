@@ -19,7 +19,7 @@ func doTest(t *testing.T, driver string) {
 	check(err)
 	defer m.Close()
 
-	m2, err := pgtestutil.New(driver, m.AdminURL())
+	m2, err := pgtestutil.New(driver, m.AdminDSN())
 	check(err)
 	defer m2.Close()
 
