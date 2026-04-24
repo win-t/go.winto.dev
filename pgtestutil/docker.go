@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -15,9 +16,9 @@ func NewDocker(driverName string, pgMajorVersion int) (*Manager, error) {
 		return nil, fmt.Errorf("docker is not available")
 	}
 
-	image := "postgres:alpine"
-	if pgMajorVersion != 0 {
-		image = fmt.Sprintf("postgres:%d-alpine", pgMajorVersion)
+	image, err := getImage(pgMajorVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get docker image: %w", err)
 	}
 
 	containerName := "pgtestutil-" + randomHex()
@@ -146,4 +147,34 @@ func proxy(ctx context.Context, conn *net.TCPConn, containerName string) {
 			fmt.Fprintf(os.Stderr, "pgtestutil: error waiting proxy: %v\n", err)
 		}
 	}
+}
+
+func getImage(pgMajorVersion int) (string, error) {
+	image := "pgtestutil:alpine"
+	if pgMajorVersion != 0 {
+		image = fmt.Sprintf("pgtestutil:%d-alpine", pgMajorVersion)
+	}
+
+	err := exec.Command("docker", "image", "inspect", image).Run()
+	if err == nil {
+		return image, nil
+	}
+
+	baseImage := "postgres:alpine"
+	if pgMajorVersion != 0 {
+		baseImage = fmt.Sprintf("postgres:%d-alpine", pgMajorVersion)
+	}
+
+	cmd := exec.Command("docker", "build", "-t", image, "-")
+	cmd.Stdin = strings.NewReader(fmt.Sprintf(""+
+		"FROM %s\n"+
+		"RUN apk add -U socat\n",
+		baseImage,
+	))
+	err = cmd.Run()
+	if err != nil {
+		return "", err
+	}
+
+	return image, nil
 }
