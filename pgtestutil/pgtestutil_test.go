@@ -4,11 +4,12 @@ import (
 	"database/sql"
 	"testing"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/lib/pq"
 	"go.winto.dev/pgtestutil"
 )
 
-func TestDocker(t *testing.T) {
+func doTest(t *testing.T, driver string) {
 	if !pgtestutil.DockerAvailable() {
 		t.Skip("Docker is not available")
 		return
@@ -28,11 +29,11 @@ func TestDocker(t *testing.T) {
 	c2, err := m2.Create()
 	check(err)
 
-	db1, err := sql.Open("postgres", c1)
+	db1, err := sql.Open(driver, c1)
 	check(err)
 	defer db1.Close()
 
-	db2, err := sql.Open("postgres", c2)
+	db2, err := sql.Open(driver, c2)
 	check(err)
 	defer db2.Close()
 
@@ -48,6 +49,14 @@ func TestDocker(t *testing.T) {
 	if result != 2 {
 		t.Fatalf("unexpected result: %d", result)
 	}
+}
+
+func TestDockerLibPQ(t *testing.T) {
+	doTest(t, "postgres")
+}
+
+func TestDockerPGX(t *testing.T) {
+	doTest(t, "pgx")
 }
 
 func check(err error) {
