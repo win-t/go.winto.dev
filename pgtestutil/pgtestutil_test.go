@@ -15,11 +15,11 @@ func doTest(t *testing.T, driver string) {
 		return
 	}
 
-	m, err := pgtestutil.NewDocker("postgres", 0)
+	m, err := pgtestutil.NewDocker(driver, 0)
 	check(err)
 	defer m.Close()
 
-	m2, err := pgtestutil.New("postgres", m.AdminURL())
+	m2, err := pgtestutil.New(driver, m.AdminURL())
 	check(err)
 	defer m2.Close()
 
