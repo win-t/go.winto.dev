@@ -13,6 +13,13 @@ func As(err error, target any) bool {
 	return stderrors.As(err, target)
 }
 
+// see [stdlib errors.AsType].
+//
+// [stdlib errors.AsType]: https://pkg.go.dev/errors/#AsType
+func AsType[T error](err error) (T, bool) {
+	return stderrors.AsType[T](err)
+}
+
 // see [stdlib errors.Is].
 //
 // [stdlib errors.Is]: https://pkg.go.dev/errors/#Is
