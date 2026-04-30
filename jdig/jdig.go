@@ -1,42 +1,9 @@
-// Package jdig provides a simple way to deal with JSON but in ineffecent way.
 package jdig
 
-import (
-	"encoding/json"
-	"reflect"
-)
+import "reflect"
 
-type IError = error
-
-type Error struct{ IError }
-
-func (e Error) Unwrap() error { return e.IError }
-
-func Unmarshal(data any) any {
-	var input []byte
-	switch v := data.(type) {
-	case string:
-		input = []byte(v)
-	case []byte:
-		input = v
-	default:
-		panic("jdig: input must be string or []byte")
-	}
-	var v any
-	err := json.Unmarshal(input, &v)
-	if err != nil {
-		panic(Error{IError: err})
-	}
-	return v
-}
-
-func Marshal(v any) string {
-	data, err := json.Marshal(v)
-	if err != nil {
-		panic(Error{IError: err})
-	}
-	return string(data)
-}
+type JObj = map[string]any
+type JArr = []any
 
 func Any(v any, keys ...any) any {
 	for _, key := range keys {
@@ -45,13 +12,13 @@ func Any(v any, keys ...any) any {
 		}
 		switch key := key.(type) {
 		case string:
-			if m, ok := v.(map[string]any); ok {
+			if m, ok := v.(JObj); ok {
 				v = m[key]
 			} else {
 				v = nil
 			}
 		case int:
-			if a, ok := v.([]any); ok && 0 <= key && key < len(a) {
+			if a, ok := v.(JArr); ok && 0 <= key && key < len(a) {
 				v = a[key]
 			} else {
 				v = nil
@@ -63,57 +30,65 @@ func Any(v any, keys ...any) any {
 	return v
 }
 
-func get[T any](v any, keys ...any) (ret T) {
-	value := Any(v, keys...)
-	ret, _ = value.(T)
-	return ret
+func get[T any](v any, keys ...any) T {
+	v = Any(v, keys...)
+	r, _ := v.(T)
+	return r
 }
 
-func Obj(v any, keys ...any) map[string]any {
-	return get[map[string]any](v, keys...)
+func Obj(v any, keys ...any) JObj {
+	return get[JObj](v, keys...)
 }
 
-func Arr(v any, keys ...any) []any {
-	return get[[]any](v, keys...)
+func Arr(v any, keys ...any) JArr {
+	return get[JArr](v, keys...)
 }
 
 func String(v any, keys ...any) string {
 	return get[string](v, keys...)
 }
 
-func Float(v any, keys ...any) float64 {
-	return get[float64](v, keys...)
-}
-
 func Bool(v any, keys ...any) bool {
 	return get[bool](v, keys...)
 }
 
-func IsNull(v any, keys ...any) bool {
-	return Any(v, keys...) == nil
+func getConvert[T any](v any, keys ...any) T {
+	v = Any(v, keys...)
+	var r T
+	if v == nil {
+		return r
+	}
+	rT := reflect.TypeOf(r)
+	val := reflect.ValueOf(v)
+	if val.CanConvert(rT) {
+		return val.Convert(rT).Interface().(T)
+	}
+	return r
 }
 
-func RecursiveDeleteKeyIfEmpty(v any) {
-	if v == nil {
-		return
-	}
+func Float(v any, keys ...any) float64 {
+	return getConvert[float64](v, keys...)
+}
+
+func Int(v any, keys ...any) int {
+	return getConvert[int](v, keys...)
+}
+
+func DeepCopy(v any) any {
 	switch v := v.(type) {
-	case map[string]any:
-		for k, vk := range v {
-			RecursiveDeleteKeyIfEmpty(vk)
-			if vk == nil {
-				delete(v, k)
-			} else if c, ok := vk.(map[string]any); ok && len(c) == 0 {
-				delete(v, k)
-			} else if c, ok := vk.([]any); ok && len(c) == 0 {
-				delete(v, k)
-			} else if reflect.ValueOf(vk).IsZero() {
-				delete(v, k)
-			}
+	case JObj:
+		copied := make(JObj, len(v))
+		for k, v := range v {
+			copied[k] = DeepCopy(v)
 		}
-	case []any:
-		for i := range v {
-			RecursiveDeleteKeyIfEmpty(v[i])
+		return copied
+	case JArr:
+		copied := make(JArr, len(v))
+		for i, v := range v {
+			copied[i] = DeepCopy(v)
 		}
+		return copied
+	default:
+		return v
 	}
 }

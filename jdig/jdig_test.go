@@ -1,44 +1,15 @@
 package jdig
 
 import (
-	"errors"
 	"testing"
 )
 
-func catch(f func()) (err error) {
-	defer func() {
-		if rec := recover(); rec != nil {
-			err = rec.(error)
-		}
-	}()
-	f()
-	return nil
-}
-
-func TestUnmarshalErr(t *testing.T) {
-	err := catch(func() {
-		Unmarshal(``)
-	})
-	if err == nil {
-		t.Fatal()
-	}
-	if errors.Unwrap(err) == nil {
-		t.Fatal()
-	}
-}
-
-func TestMarshal(t *testing.T) {
-	if Marshal(123) != "123" {
-		t.Fatal()
-	}
-}
-
-func TestMain(t *testing.T) {
-	v := Unmarshal(`{"a": 1, "b": [{"c": 12, "n": null}, {"c": 13, "d": true}]}`)
+func TestQuery(t *testing.T) {
+	v := MustUnmarshal(`{"a": 1, "b": [{"c": 12, "n": null}, {"c": 13, "d": true}]}`)
 	if a := Float(v, "a"); a != 1 {
 		t.Fatal()
 	}
-	if a := Float(v, "a"); a != 1 {
+	if a := Int(v, "a"); a != 1 {
 		t.Fatal()
 	}
 	if a := String(v, "a"); a != "" {
@@ -47,13 +18,13 @@ func TestMain(t *testing.T) {
 	if a := Float(v, "b", "y", "z"); a != 0 {
 		t.Fatal()
 	}
-	if !IsNull(v, "zz") {
+	if Any(v, "zz") != nil {
 		t.Fatal()
 	}
 	if Float(v, "b", 0, "c") != 12 {
 		t.Fatal()
 	}
-	if !IsNull(v, "b", 0, "n") {
+	if Any(v, "b", 0, "n") != nil {
 		t.Fatal()
 	}
 	if !Bool(v, "b", 1, "d") {
@@ -67,34 +38,17 @@ func TestMain(t *testing.T) {
 	}
 }
 
-func TestRecursiveDeleteKeyIfEmpty(t *testing.T) {
-	v := map[string]any{
-		"a": nil,
-		"b": 0,
-		"c": 0.0,
-		"d": []any{},
-		"e": map[string]any{},
-		"e2": map[string]any{
-			"a": nil,
-		},
-		"f": "",
-		"g": []any{
-			1,
-			map[string]any{},
-			map[string]any{
-				"a": 0,
-				"b": "something",
+func TestDeppCopy(t *testing.T) {
+	a := JObj{
+		"a": JArr{
+			JObj{
+				"b": 1,
 			},
 		},
 	}
-	RecursiveDeleteKeyIfEmpty(v)
-	if len(v) != 1 {
-		t.Fatal()
-	}
-	if len(Arr(v, "g")) != 3 {
-		t.Fatal()
-	}
-	if len(Obj(v, "g", 2)) != 1 {
+	b := DeepCopy(a)
+	Obj(a, "a", 0)["b"] = 100
+	if Int(b, "a", 0, "b") != 1 {
 		t.Fatal()
 	}
 }
