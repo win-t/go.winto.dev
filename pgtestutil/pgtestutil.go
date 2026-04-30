@@ -25,30 +25,38 @@ type Manager struct {
 	created map[string]struct{}
 }
 
-// New creates a new Manager with the given driver name and dsn.
-// The parameters all equivalent to [database/sql.Open] function
-func New(driver string, adminDSN string) (*Manager, error) {
-	return newManager(driver, adminDSN, nil, false)
-}
-
-func newManager(driverName string, adminConn string, closeHook func(), skipCleanup bool) (*Manager, error) {
-	adminURL, err := url.Parse(adminConn)
-	if err != nil {
-		return nil, err
-	}
-
-	adminDB, err := sql.Open(driverName, adminConn)
+func openDB(driver, dsn string) (*sql.DB, error) {
+	adminDB, err := sql.Open(driver, dsn)
 	if err != nil {
 		return nil, err
 	}
 	adminDB.SetMaxOpenConns(2)
 
+	return adminDB, nil
+}
+
+// New creates a new Manager with the given driver name and dsn.
+// The parameters all equivalent to [database/sql.Open] function
+func New(driver string, adminDSN string) (*Manager, error) {
+
+	adminURL, err := url.Parse(adminDSN)
+	if err != nil {
+		return nil, err
+	}
+
+	adminDB, err := openDB(driver, adminDSN)
+	if err != nil {
+		return nil, err
+	}
+	if err := adminDB.Ping(); err != nil {
+		adminDB.Close()
+		return nil, err
+	}
+
 	return &Manager{
-		adminURL:    adminURL,
-		adminDB:     adminDB,
-		closeHook:   closeHook,
-		skipCleanup: skipCleanup,
-		created:     make(map[string]struct{}),
+		adminURL: adminURL,
+		adminDB:  adminDB,
+		created:  make(map[string]struct{}),
 	}, nil
 }
 

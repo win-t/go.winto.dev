@@ -66,7 +66,7 @@ func NewDocker(driverName string, pgMajorVersion int) (*Manager, error) {
 		return nil, err
 	}
 
-	target := &url.URL{
+	adminURL := &url.URL{
 		Scheme:   "postgres",
 		User:     url.UserPassword("postgres", adminPass),
 		Host:     fmt.Sprintf("localhost:%d", port),
@@ -74,7 +74,29 @@ func NewDocker(driverName string, pgMajorVersion int) (*Manager, error) {
 		RawQuery: "sslmode=disable",
 	}
 
-	return newManager(driverName, target.String(), closeFn, true)
+	adminDB, err := openDB(driverName, adminURL.String())
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		if adminDB.Ping() == nil {
+			break
+		}
+		if time.Now().After(until) {
+			closeFn()
+			return nil, fmt.Errorf("failed to wait until postgres is ready")
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	return &Manager{
+		adminURL:    adminURL,
+		adminDB:     adminDB,
+		created:     make(map[string]struct{}),
+		closeHook:   closeFn,
+		skipCleanup: true,
+	}, nil
 }
 
 func DockerAvailable() bool {
