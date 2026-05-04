@@ -42,6 +42,17 @@ func MergeCallback(cb MergeCallbackFn) MergeHandler { return mergeHandler{cb: cb
 // Merge multiple JSON values into one, in place.
 // If any of the object contains [jdig.MergeHandler] value, the merge handler will be used.
 func Merge(objs ...any) any {
+	return multiObjsMerge(objs, true)
+}
+
+// like [jdig.Merge] but the remaining MergeHandler will not be resolved.
+//
+// this is useful when you want to construct values that later will eventually be passed to [jdig.Merge].
+func MergeWithoutResolve(objs ...any) any {
+	return multiObjsMerge(objs, false)
+}
+
+func multiObjsMerge(objs []any, resolve bool) any {
 	if len(objs) == 0 {
 		return nil
 	}
@@ -52,7 +63,9 @@ func Merge(objs ...any) any {
 		}
 	}
 	dst = merge(nil, objs[0])
-	dst = resolveRemainingHandler(dst)
+	if resolve {
+		dst = resolveRemainingHandler(dst)
+	}
 	return dst
 }
 
