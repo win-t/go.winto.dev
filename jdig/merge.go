@@ -45,7 +45,8 @@ func Merge(objs ...any) any {
 	return multiObjsMerge(objs, true)
 }
 
-// like [jdig.Merge] but the remaining MergeHandler will not be resolved.
+// like [jdig.Merge] but the remaining MergeHandler will not be resolved,
+// means the result will still contain MergeHandler and cant be marshaled to JSON yet.
 //
 // this is useful when you want to construct values that later will eventually be passed to [jdig.Merge].
 func MergeWithoutResolve(objs ...any) any {

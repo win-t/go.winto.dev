@@ -142,3 +142,28 @@ func ExampleStrategicMerge() {
 	// Output:
 	// true
 }
+
+func ExampleNormalizeNilArrayAndMaps() {
+	type jobj = map[string]any
+	type jarr = []any
+
+	a := jobj{
+		"hello": jobj(nil),
+		"world": jarr(nil),
+	}
+
+	normal := `{"hello": null, "world": null}`
+	normalized := `{"hello": {}, "world": []}`
+
+	fmt.Println(reflect.DeepEqual(
+		jdig.MustUnmarshal(jdig.Marshal(a)),
+		jdig.MustUnmarshal(normal),
+	))
+	fmt.Println(reflect.DeepEqual(
+		jdig.MustUnmarshal(jdig.Marshal(jdig.Merge(jdig.NormalizeNilArrayAndMaps(a)))),
+		jdig.MustUnmarshal(normalized),
+	))
+	// Output:
+	// true
+	// true
+}

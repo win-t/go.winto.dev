@@ -76,3 +76,34 @@ func StrategicMerge(mergeKey string, src JArr) MergeHandler {
 		return retval
 	})
 }
+
+// NormalizeNilArrayAndMaps returns a MergeHandler that normalizes nil arrays and maps to empty ones.
+func NormalizeNilArrayAndMaps(src any) MergeHandler {
+	return MergeCallback(func(dst any, defaultFn func(dst any, src any) any) any {
+		v := defaultFn(dst, src)
+		return normalizeNilArrayAndMaps(v)
+	})
+}
+
+func normalizeNilArrayAndMaps(v any) any {
+	switch v := v.(type) {
+	case JArr:
+		if v == nil {
+			return make(JArr, 0)
+		}
+		for i := range v {
+			v[i] = normalizeNilArrayAndMaps(v[i])
+		}
+		return v
+	case JObj:
+		if v == nil {
+			return make(JObj)
+		}
+		for k, vv := range v {
+			v[k] = normalizeNilArrayAndMaps(vv)
+		}
+		return v
+	default:
+		return v
+	}
+}
