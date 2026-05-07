@@ -114,13 +114,13 @@ func TestMerge(t *testing.T) {
 		},
 		JObj{
 			"x": MergeCallback(
-				func(dst any, defaultFn func(dst any, src any) any) any {
+				func(dst any) any {
 					a, _ := dst.(int)
 					return a + 12
 				},
 			),
 			"y": MergeCallback(
-				func(dst any, defaultFn func(dst any, src any) any) any {
+				func(dst any) any {
 					return JArr{1, 2, 3, 4}
 				},
 			),
@@ -130,7 +130,7 @@ func TestMerge(t *testing.T) {
 		},
 		JObj{
 			"z": MergeCallback(
-				func(dst any, defaultFn func(dst any, src any) any) any {
+				func(dst any) any {
 					a, _ := dst.(int)
 					return a + 12
 				},
@@ -200,7 +200,7 @@ func TestMergeCallbackGenerator(t *testing.T) {
 	var count int
 	var genHandler func(v any) MergeHandler
 	genHandler = func(v any) MergeHandler {
-		cb := func(dst any, defaultFn func(dst any, src any) any) any {
+		cb := func(dst any) any {
 			count++
 			if dst == nil {
 				return v
@@ -238,8 +238,8 @@ func TestMergeCallbackGenerator(t *testing.T) {
 	shouldPanic(t, func() {
 		Merge(
 			JObj{
-				"a": MergeCallback(func(dst any, defaultFn func(dst any, src any) any) any {
-					return MergeCallback(func(dst any, defaultFn func(dst any, src any) any) any { return nil })
+				"a": MergeCallback(func(dst any) any {
+					return MergeCallback(func(dst any) any { return nil })
 				}),
 			},
 		)
@@ -248,7 +248,7 @@ func TestMergeCallbackGenerator(t *testing.T) {
 	v = Merge(
 		JArr{
 			DiscardKey(),
-			MergeCallback(func(dst any, defaultFn func(dst any, src any) any) any {
+			MergeCallback(func(dst any) any {
 				return DiscardKey()
 			}),
 		},

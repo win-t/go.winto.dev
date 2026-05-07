@@ -92,3 +92,27 @@ func DeepCopy(v any) any {
 		return v
 	}
 }
+
+// NormalizeNilArrayAndMaps normalizes nil arrays and maps to empty ones.
+func NormalizeNilArrayAndMaps(v any) any {
+	switch v := v.(type) {
+	case JArr:
+		if v == nil {
+			return make(JArr, 0)
+		}
+		for i := range v {
+			v[i] = NormalizeNilArrayAndMaps(v[i])
+		}
+		return v
+	case JObj:
+		if v == nil {
+			return make(JObj)
+		}
+		for k, vv := range v {
+			v[k] = NormalizeNilArrayAndMaps(vv)
+		}
+		return v
+	default:
+		return v
+	}
+}

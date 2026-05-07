@@ -15,13 +15,13 @@ type discardType struct{ mergeHandlerBase }
 // Return placeholder value used to delete the key when [jdig.Merge] called.
 func DiscardKey() MergeHandler { return discardType{} }
 
-// This function must return the merged value, the defaultFn function can be used as fallback to do the default merge.
+// This function must return the merged value.
 //
 // If the dst is nil, do not return another MergeHandler other than DiscardKey.
-type MergeCallbackFn func(dst any, defaultFn func(dst any, src any) any) any
+type MergeCallbackFn func(dst any) any
 
-func (cb MergeCallbackFn) do(dst any, defaultFn func(dst any, src any) any) any {
-	v := cb(dst, defaultFn)
+func (cb MergeCallbackFn) do(dst any) any {
+	v := cb(dst)
 	if dst == nil {
 		if _, ok := v.(mergeHandler); ok {
 			panic("jdig: dst is nil, handler must not return another MergeHandler other than DiscardKey")
@@ -42,32 +42,27 @@ func MergeCallback(cb MergeCallbackFn) MergeHandler { return mergeHandler{cb: cb
 // Merge multiple JSON values into one, in place.
 // If any of the object contains [jdig.MergeHandler] value, the merge handler will be used.
 func Merge(objs ...any) any {
-	return multiObjsMerge(objs, true)
+	return resolveRemainingHandler(multiMerge(objs))
 }
 
 // like [jdig.Merge] but the remaining MergeHandler will not be resolved,
 // means the result will still contain MergeHandler and cant be marshaled to JSON yet.
 //
-// this is useful when you want to construct values that later will eventually be passed to [jdig.Merge].
+// this is useful when you want to construct values that later will eventually be passed to [jdig.Merge], like in MergeCallback.
 func MergeWithoutResolve(objs ...any) any {
-	return multiObjsMerge(objs, false)
+	return multiMerge(objs)
 }
 
-func multiObjsMerge(objs []any, resolve bool) any {
+func multiMerge(objs []any) any {
 	if len(objs) == 0 {
 		return nil
 	}
-	var dst any
 	if len(objs) > 1 {
 		for i := len(objs) - 1; i >= 1; i-- {
 			objs[i-1] = merge(objs[i-1], objs[i])
 		}
 	}
-	dst = merge(nil, objs[0])
-	if resolve {
-		dst = resolveRemainingHandler(dst)
-	}
-	return dst
+	return objs[0]
 }
 
 func resolveRemainingHandler(v any) any {
@@ -87,7 +82,7 @@ func resolveRemainingHandler(v any) any {
 		}
 		return v
 	case mergeHandler:
-		return resolveRemainingHandler(v.cb.do(nil, merge))
+		return resolveRemainingHandler(v.cb.do(nil))
 	case discardType:
 		return nil
 	default:
@@ -102,7 +97,7 @@ func merge(dst, src any) any {
 	case JArr:
 		return mergeArr(dst, src)
 	case mergeHandler:
-		return src.cb.do(dst, merge)
+		return src.cb.do(dst)
 	default:
 		return src
 	}
@@ -138,14 +133,14 @@ func mergeArr(dst any, src JArr) any {
 
 // Keep the value in dst
 func Keep() MergeHandler {
-	return MergeCallback(func(dst any, defaultFn func(dst any, src any) any) any {
+	return MergeCallback(func(dst any) any {
 		return dst
 	})
 }
 
 // Replace value in dst
 func Replace(v any) MergeHandler {
-	return MergeCallback(func(dst any, defaultFn func(dst any, src any) any) any {
+	return MergeCallback(func(dst any) any {
 		return v
 	})
 }

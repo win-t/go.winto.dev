@@ -18,10 +18,10 @@ func objHaveKey(v any, keyName string) (string, JObj) {
 //
 // only `replace`, `merge` and `delete` in `$patch` are supported.
 func StrategicMerge(mergeKey string, src JArr) MergeHandler {
-	return MergeCallback(func(dstA any, defaultFn func(dst any, src any) any) any {
+	return MergeCallback(func(dstA any) any {
 		dst, ok := dstA.(JArr)
 		if !ok {
-			return defaultFn(dstA, src)
+			return MergeWithoutResolve(dstA, src)
 		}
 
 		keyedSrc := make(map[string]JObj)
@@ -53,7 +53,7 @@ func StrategicMerge(mergeKey string, src JArr) MergeHandler {
 			case "replace":
 				retval = append(retval, srcM)
 			case "", "merge":
-				retval = append(retval, defaultFn(dstM, srcM))
+				retval = append(retval, MergeWithoutResolve(dstM, srcM))
 			case "delete":
 			default:
 				panic("jdig: patch directive \"" + patchDirective + "\" not supported")
@@ -75,35 +75,4 @@ func StrategicMerge(mergeKey string, src JArr) MergeHandler {
 
 		return retval
 	})
-}
-
-// NormalizeNilArrayAndMaps returns a MergeHandler that normalizes nil arrays and maps to empty ones.
-func NormalizeNilArrayAndMaps(src any) MergeHandler {
-	return MergeCallback(func(dst any, defaultFn func(dst any, src any) any) any {
-		v := defaultFn(dst, src)
-		return normalizeNilArrayAndMaps(v)
-	})
-}
-
-func normalizeNilArrayAndMaps(v any) any {
-	switch v := v.(type) {
-	case JArr:
-		if v == nil {
-			return make(JArr, 0)
-		}
-		for i := range v {
-			v[i] = normalizeNilArrayAndMaps(v[i])
-		}
-		return v
-	case JObj:
-		if v == nil {
-			return make(JObj)
-		}
-		for k, vv := range v {
-			v[k] = normalizeNilArrayAndMaps(vv)
-		}
-		return v
-	default:
-		return v
-	}
 }

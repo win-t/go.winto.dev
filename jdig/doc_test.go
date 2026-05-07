@@ -73,7 +73,7 @@ func ExampleMergeCallback() {
 
 	var createAdderHandler func(v float64) jdig.MergeHandler
 	createAdderHandler = func(v float64) jdig.MergeHandler {
-		return jdig.MergeCallback(func(dst any, defaultFn func(dst any, src any) any) any {
+		return jdig.MergeCallback(func(dst any) any {
 			if dst == nil { // never return another MergeHandler when dst is nil
 				return v
 			}
@@ -152,15 +152,15 @@ func ExampleNormalizeNilArrayAndMaps() {
 		"world": jarr(nil),
 	}
 
-	normal := `{"hello": null, "world": null}`
+	original := `{"hello": null, "world": null}`
 	normalized := `{"hello": {}, "world": []}`
 
 	fmt.Println(reflect.DeepEqual(
 		jdig.MustUnmarshal(jdig.Marshal(a)),
-		jdig.MustUnmarshal(normal),
+		jdig.MustUnmarshal(original),
 	))
 	fmt.Println(reflect.DeepEqual(
-		jdig.MustUnmarshal(jdig.Marshal(jdig.Merge(jdig.NormalizeNilArrayAndMaps(a)))),
+		jdig.MustUnmarshal(jdig.Marshal(jdig.NormalizeNilArrayAndMaps(a))),
 		jdig.MustUnmarshal(normalized),
 	))
 	// Output:
