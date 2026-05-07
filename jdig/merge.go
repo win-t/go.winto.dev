@@ -108,6 +108,9 @@ func mergeObj(dst any, src JObj) any {
 	if !ok {
 		return src
 	}
+	if dstM == nil {
+		dstM = make(JObj)
+	}
 	for k := range src {
 		if v, ok := dstM[k]; ok {
 			dstM[k] = merge(v, src[k])
@@ -122,6 +125,9 @@ func mergeArr(dst any, src JArr) any {
 	dstA, ok := dst.(JArr)
 	if !ok {
 		return src
+	}
+	if dstA == nil {
+		dstA = make(JArr, 0, len(src))
 	}
 	l := min(len(dstA), len(src))
 	for i := range src[:l] {

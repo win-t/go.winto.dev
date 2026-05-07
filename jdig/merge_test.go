@@ -267,3 +267,9 @@ func shouldPanic(t *testing.T, f func()) {
 	}()
 	f()
 }
+
+func TestNilDs(t *testing.T) {
+	// this test just ensure no panic
+	Merge(JObj(nil), JObj{"a": "b"})
+	merge(JArr(nil), JArr{1, 2})
+}
