@@ -1,6 +1,9 @@
 package jdig
 
-import "reflect"
+import (
+	"encoding/json"
+	"reflect"
+)
 
 type JObj = map[string]any
 type JArr = []any
@@ -52,8 +55,7 @@ func Bool(v any, keys ...any) bool {
 	return get[bool](v, keys...)
 }
 
-func getConvert[T any](v any, keys ...any) T {
-	v = Any(v, keys...)
+func getConvert[T any](v any) T {
 	var r T
 	if v == nil {
 		return r
@@ -67,11 +69,25 @@ func getConvert[T any](v any, keys ...any) T {
 }
 
 func Float(v any, keys ...any) float64 {
-	return getConvert[float64](v, keys...)
+	v = Any(v, keys...)
+	if s, ok := v.(json.Number); ok {
+		f, _ := s.Float64()
+		return f
+	}
+	return getConvert[float64](v)
 }
 
 func Int(v any, keys ...any) int {
-	return getConvert[int](v, keys...)
+	v = Any(v, keys...)
+	if s, ok := v.(json.Number); ok {
+		if i, err := s.Int64(); err == nil {
+			return int(i)
+		} else {
+			f, _ := s.Float64()
+			return int(f)
+		}
+	}
+	return getConvert[int](v)
 }
 
 func DeepCopy(v any) any {

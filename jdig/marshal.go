@@ -5,8 +5,14 @@ import (
 	"strings"
 )
 
+type UnmarshalOpt struct{ f func(*json.Decoder) }
+
+func UseNumber() UnmarshalOpt {
+	return UnmarshalOpt{f: func(d *json.Decoder) { d.UseNumber() }}
+}
+
 // Wrap [json.Unmarshal], accept only string or []byte.
-func Unmarshal(data any) (any, error) {
+func Unmarshal(data any, options ...UnmarshalOpt) (any, error) {
 	var input []byte
 	switch v := data.(type) {
 	case string:
@@ -17,12 +23,16 @@ func Unmarshal(data any) (any, error) {
 		panic("jdig: input must be string or []byte")
 	}
 	var v any
-	err := json.Unmarshal(input, &v)
+	decoder := json.NewDecoder(strings.NewReader(string(input)))
+	for _, opt := range options {
+		opt.f(decoder)
+	}
+	err := decoder.Decode(&v)
 	return v, err
 }
 
-func MustUnmarshal(data any) any {
-	v, err := Unmarshal(data)
+func MustUnmarshal(data any, options ...UnmarshalOpt) any {
+	v, err := Unmarshal(data, options...)
 	if err != nil {
 		panic("jdig: unmarshal error: " + err.Error())
 	}
