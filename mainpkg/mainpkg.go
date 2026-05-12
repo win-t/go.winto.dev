@@ -85,8 +85,8 @@ func Exec(f func(ctx context.Context), opts ...Opt) {
 		return
 	}
 
-	if exitCodeErr := ExitCode(0); errors.As(err, &exitCodeErr) {
-		exitCode = int(exitCodeErr)
+	if ec, ok := errors.AsType[ExitCode](err); ok {
+		exitCode = int(ec)
 		return
 	}
 

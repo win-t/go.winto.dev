@@ -1,5 +1,5 @@
 module go.winto.dev/mainpkg
 
-go 1.24.3
+go 1.26.2
 
-require go.winto.dev/errors v1.7.0
+require go.winto.dev/errors v1.8.0
