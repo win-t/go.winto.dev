@@ -121,15 +121,6 @@ func (m *RWMutex) RunEReadNoPanic(f func() error) error {
 
 type WaitGroup struct{ sync.WaitGroup }
 
-// Go is similar to normal go keyword, but it registers to the waitgroup.
-func (wg *WaitGroup) Go(f func()) {
-	wg.Add(1)
-	go func() {
-		defer wg.Add(-1)
-		f()
-	}()
-}
-
 // Run f in new goroutine, and register it into the waitgroup, and return chan to get the value returned by f or the panic value if f panic.
 func (wg *WaitGroup) Run(f func() error) <-chan error {
 	ch := make(chan error, 1)
