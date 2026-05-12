@@ -1,58 +1,31 @@
 package main
 
 import (
-	"fmt"
+	"net/http"
+	"net/http/cgi"
 	"os"
-	"path/filepath"
+	"runtime"
 
-	daemonize "go.winto.dev/daemonize/pkg"
-	gorundir "go.winto.dev/gorundir/pkg"
+	"go.winto.dev/daemonize/pkg"
 )
 
-var tools = map[string]func(){
-	"gorundir":                     gorundir.Main,
-	"daemonize":                    daemonize.Main,
-	"proxy-service-setup-php-mode": func() { proxySetup(true) },
-	"proxy-service-setup":          func() { proxySetup(false) },
-}
-
 func main() {
-	toolName := filepath.Base(os.Args[0])
-
-	var main func()
-	if toolName == "webhosting-helper" {
-		main = selfMain
-	} else {
-		var ok bool
-		main, ok = tools[toolName]
-		if !ok {
-			fmt.Fprintf(os.Stderr, "Tool '%s' not found.\n", toolName)
-			os.Exit(1)
-		}
+	if os.Args[0] == "daemonize" {
+		pkg.Main()
+		return
 	}
 
-	main()
-}
-
-func selfMain() {
-	if len(os.Args) != 2 || os.Args[1] != "install-symlinks" {
-		fmt.Fprintln(os.Stderr, "Usage: webhosting-helper install-symlinks")
-		os.Exit(1)
-	}
-
-	f, err := os.Executable()
+	runtime.GOMAXPROCS(1)
+	err := cgi.Serve(http.HandlerFunc(handler))
 	check(err)
-	err = os.Chdir(filepath.Dir(f))
-	check(err)
-	for toolName := range tools {
-		os.Remove(toolName)
-		err = os.Symlink("webhosting-helper", toolName)
-		check(err)
-	}
 }
 
 func check(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	root
 }

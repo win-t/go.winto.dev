@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -53,7 +55,8 @@ func Main() {
 		nameParts = nameParts[1:]
 	}
 
-	compiledPath := filepath.Join(cacheDir, strings.Join(nameParts, "-"))
+	targeDirSum := sha256.Sum256([]byte(targetDir))
+	compiledPath := filepath.Join(cacheDir, strings.Join(nameParts, "-")) + "-" + hex.EncodeToString(targeDirSum[:])[:8]
 
 	goBuild := exec.Command("go", "build", "-C", targetDir, "-o", compiledPath, ".")
 	goBuild.Stdin, goBuild.Stdout, goBuild.Stderr = nil, os.Stderr, os.Stderr
