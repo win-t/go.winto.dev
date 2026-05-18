@@ -52,3 +52,19 @@ func TestDeppCopy(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestNumberFromString(t *testing.T) {
+	v := MustUnmarshal(`{"a": "1", "b": "1.25"}`)
+	if Float(v, "a") != 1 {
+		t.Fatal()
+	}
+	if Int(v, "a") != 1 {
+		t.Fatal()
+	}
+	if Float(v, "b") != 1.25 {
+		t.Fatal()
+	}
+	if Int(v, "b") != 1 {
+		t.Fatal()
+	}
+}

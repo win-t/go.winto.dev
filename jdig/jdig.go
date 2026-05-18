@@ -70,6 +70,9 @@ func getConvert[T any](v any) T {
 
 func Float(v any, keys ...any) float64 {
 	v = Any(v, keys...)
+	if s, ok := v.(string); ok {
+		v = json.Number(s)
+	}
 	if s, ok := v.(json.Number); ok {
 		f, _ := s.Float64()
 		return f
@@ -79,6 +82,9 @@ func Float(v any, keys ...any) float64 {
 
 func Int(v any, keys ...any) int {
 	v = Any(v, keys...)
+	if s, ok := v.(string); ok {
+		v = json.Number(s)
+	}
 	if s, ok := v.(json.Number); ok {
 		if i, err := s.Int64(); err == nil {
 			return int(i)
