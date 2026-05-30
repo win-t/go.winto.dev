@@ -1,6 +1,7 @@
 package async
 
 import (
+	"context"
 	"sync"
 
 	"go.winto.dev/errors"
@@ -13,19 +14,28 @@ func NewSem(size int) Sem {
 }
 
 // Run runs a function with semaphore control.
-func (s Sem) Run(f func()) {
-	s.ch <- struct{}{}
+func (s Sem) Run(ctx context.Context, f func(ctx context.Context) error) error {
+	select {
+	case s.ch <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	defer func() { <-s.ch }()
-	f()
+	return f(ctx)
 }
 
 // RunNoPanic is similar to [Sem.Run] but assuming f will not panic.
 //
 // if f panic, the semaphore count will not be restored.
-func (s Sem) RunNoPanic(f func()) {
-	s.ch <- struct{}{}
-	f()
+func (s Sem) RunNoPanic(ctx context.Context, f func(ctx context.Context) error) error {
+	select {
+	case s.ch <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	err := f(ctx)
 	<-s.ch
+	return err
 }
 
 type Mutex struct{ sync.Mutex }

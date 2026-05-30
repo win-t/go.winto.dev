@@ -37,13 +37,13 @@ func Promise[R any](f func() (R, error)) func(context.Context) (R, error) {
 	}
 
 	var data Result[R]
-	var waitPtr atomic.Pointer[wait]
+	var waitPtr atomic.Pointer[wait] // when waitPtr is nil, promise is fulfilled and data is ready
 	{
 		w := &wait{
 			data: Run2(f),
 			lock: make(chan struct{}, 1),
 		}
-		w.lock <- struct{}{}
+		w.lock <- struct{}{} // init lock
 		waitPtr.Store(w)
 	}
 
@@ -74,7 +74,8 @@ func Promise[R any](f func() (R, error)) func(context.Context) (R, error) {
 			wait.lock <- struct{}{}
 			return ret, ctx.Err()
 		case data = <-wait.data:
-			// wake up all waiting goroutine after setting waitPtr to nil to indicate the promise is fulfilled
+			// Store is equivalent to memory_order_seq_cst in C/C++
+			// so data will be visible to other goroutines after waitPtr.Store(nil)
 			waitPtr.Store(nil)
 			close(wait.lock)
 			return data.Result, data.Error
