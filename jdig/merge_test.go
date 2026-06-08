@@ -297,3 +297,12 @@ func TestResolveOnlyDiscard(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestHandlerReturnDiscard(t *testing.T) {
+	a := Merge(JObj{
+		"a": Replace(DiscardKey()),
+	})
+	if len(Obj(a)) != 0 {
+		t.Fatal()
+	}
+}
