@@ -273,3 +273,27 @@ func TestNilDs(t *testing.T) {
 	Merge(JObj(nil), JObj{"a": "b"})
 	merge(JArr(nil), JArr{1, 2})
 }
+
+func TestResolveOnlyDiscard(t *testing.T) {
+	a := MergeWithoutResolve(
+		JObj{
+			"a": Keep(),
+			"c": 10,
+		},
+		ResolveOnlyDiscard(JObj{
+			"b": DiscardKey(),
+			"c": Replace(Keep()),
+		}),
+	)
+
+	aObj := Obj(a)
+	if len(aObj) != 2 {
+		t.Fatal()
+	}
+	if !reflect.TypeOf(aObj["a"]).Implements(reflect.TypeFor[MergeHandler]()) {
+		t.Fatal()
+	}
+	if !reflect.TypeOf(aObj["c"]).Implements(reflect.TypeFor[MergeHandler]()) {
+		t.Fatal()
+	}
+}

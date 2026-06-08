@@ -42,7 +42,7 @@ func MergeCallback(cb MergeCallbackFn) MergeHandler { return mergeHandler{cb: cb
 // Merge multiple JSON values into one, in place.
 // If any of the object contains [jdig.MergeHandler] value, the merge handler will be used.
 func Merge(objs ...any) any {
-	return resolveRemainingHandler(multiMerge(objs))
+	return resolveRemainingHandler(multiMerge(objs), false)
 }
 
 // like [jdig.Merge] but the remaining MergeHandler will not be resolved,
@@ -65,24 +65,32 @@ func multiMerge(objs []any) any {
 	return objs[0]
 }
 
-func resolveRemainingHandler(v any) any {
+// Resolve only [jdig.Discard]
+func ResolveOnlyDiscard(v any) any {
+	return resolveRemainingHandler(v, true)
+}
+
+func resolveRemainingHandler(v any, discardOnly bool) any {
 	switch v := v.(type) {
 	case JObj:
 		for k := range v {
 			if _, ok := v[k].(discardType); ok {
 				delete(v, k)
 			} else {
-				v[k] = resolveRemainingHandler(v[k])
+				v[k] = resolveRemainingHandler(v[k], discardOnly)
 			}
 		}
 		return v
 	case JArr:
 		for i := range v {
-			v[i] = resolveRemainingHandler(v[i])
+			v[i] = resolveRemainingHandler(v[i], discardOnly)
 		}
 		return v
 	case mergeHandler:
-		return resolveRemainingHandler(v.cb.do(nil))
+		if discardOnly {
+			return v
+		}
+		return resolveRemainingHandler(v.cb.do(nil), discardOnly)
 	case discardType:
 		return nil
 	default:
