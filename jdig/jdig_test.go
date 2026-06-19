@@ -68,3 +68,23 @@ func TestNumberFromString(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestAnyExists(t *testing.T) {
+	v := MustUnmarshal(`
+		{
+			"a": {
+				"b": [
+					{"c": 1},
+					{"e": null}
+				]
+			}
+		}
+	`)
+
+	if v, exists := AnyExists(v, "a", "b", 1, "e"); !(v == nil && exists) {
+		t.Fatal()
+	}
+	if v, exists := AnyExists(v, "a", "b", 0, "e"); !(v == nil && !exists) {
+		t.Fatal()
+	}
+}

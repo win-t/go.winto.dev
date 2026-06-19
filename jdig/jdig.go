@@ -8,21 +8,29 @@ import (
 type JObj = map[string]any
 type JArr = []any
 
-func Any(v any, keys ...any) any {
-	for _, key := range keys {
+func AnyExists(v any, keys ...any) (any, bool) {
+	exists := false
+	for i, key := range keys {
 		if v == nil {
 			break
 		}
 		switch key := key.(type) {
 		case string:
 			if m, ok := v.(JObj); ok {
-				v = m[key]
+				var found bool
+				v, found = m[key]
+				if found && i == len(keys)-1 {
+					exists = true
+				}
 			} else {
 				v = nil
 			}
 		case int:
 			if a, ok := v.(JArr); ok && 0 <= key && key < len(a) {
 				v = a[key]
+				if i == len(keys)-1 {
+					exists = true
+				}
 			} else {
 				v = nil
 			}
@@ -30,6 +38,11 @@ func Any(v any, keys ...any) any {
 			panic("jdig: key must be string or integer")
 		}
 	}
+	return v, exists
+}
+
+func Any(v any, keys ...any) any {
+	v, _ = AnyExists(v, keys...)
 	return v
 }
 
