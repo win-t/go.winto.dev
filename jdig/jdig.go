@@ -53,7 +53,10 @@ func get[T any](v any, keys ...any) T {
 }
 
 func Obj(v any, keys ...any) JObj {
-	return get[JObj](v, keys...)
+	if o := get[JObj](v, keys...); o != nil {
+		return o
+	}
+	return JObj{}
 }
 
 func Arr(v any, keys ...any) JArr {
