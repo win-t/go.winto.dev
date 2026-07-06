@@ -62,3 +62,19 @@ func Marshal(v any, options ...MarshalOpt) string {
 	}
 	return sb.String()
 }
+
+func MarshalUnmarshal(dst, src any) error {
+	b, err := json.Marshal(src)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(b, dst)
+	return err
+}
+
+func MustMarshalUnmarshal(dst, src any) {
+	err := MarshalUnmarshal(dst, src)
+	if err != nil {
+		panic("jdig: marshal/unmarshal error: " + err.Error())
+	}
+}

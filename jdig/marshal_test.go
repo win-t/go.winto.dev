@@ -2,6 +2,7 @@ package jdig
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -33,6 +34,25 @@ func TestNum(t *testing.T) {
 	}
 
 	if Int(v, "b") != 1 {
+		t.Fatal()
+	}
+}
+
+func TestMarshalUnmarshal(t *testing.T) {
+	src := JObj{
+		"A": "hello",
+		"B": 12,
+	}
+	type dstT struct {
+		A string
+		B int
+	}
+	var dst dstT
+	MustMarshalUnmarshal(&dst, src)
+	if !reflect.DeepEqual(dst, dstT{
+		A: "hello",
+		B: 12,
+	}) {
 		t.Fatal()
 	}
 }
