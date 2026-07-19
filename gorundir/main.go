@@ -1,5 +1,5 @@
 package main
 
-import "go.winto.dev/gorundir/pkg"
+import gorundir "go.winto.dev/gorundir/pkg"
 
-func main() { pkg.Main() }
+func main() { gorundir.Main() }
