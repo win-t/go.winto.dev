@@ -1,3 +1,3 @@
 module go.winto.dev/gorundir
 
-go 1.23.6
+go 1.26.4
