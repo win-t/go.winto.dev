@@ -90,7 +90,7 @@ func computeGitPath(cacheDir, target string) (abs, bin string) {
 		exitErr("gorundir: cannot fetch " + repoURL + " on ref " + ref)
 	}
 
-	if output, err := exec.Command("git", "-C", repoAbs, "checkout", "FETCH_HEAD").CombinedOutput(); err != nil {
+	if output, err := exec.Command("git", "-C", repoAbs, "checkout", "-f", "FETCH_HEAD").CombinedOutput(); err != nil {
 		os.Stderr.Write(output)
 		os.Stderr.WriteString("\n")
 		exitErr("gorundir: cannot checkout to " + ref)

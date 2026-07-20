@@ -28,7 +28,7 @@ var nonAlphaNum = regexp.MustCompile("[^a-zA-Z0-9]+")
 func normalizePart(name string) string {
 	name = nonAlphaNum.ReplaceAllString(name, "")
 	if len(name) > 6 {
-		name = name[:4] + ".."
+		name = name[:6]
 	}
 	return name
 }
