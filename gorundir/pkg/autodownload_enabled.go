@@ -5,13 +5,11 @@ package gorundir
 import (
 	"archive/tar"
 	"compress/gzip"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -46,17 +44,14 @@ func ensureGo(cacheDir string) {
 		return
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-
-	resp, err := httpGet(ctx, "https://go.dev/VERSION?m=text")
+	resp, err := http.Get("https://go.dev/VERSION?m=text")
 	check(err)
 	respBody, err := io.ReadAll(resp.Body)
 	check(err)
 	resp.Body.Close()
 
 	goVersion := strings.Split(string(respBody), "\n")[0]
-	resp, err = httpGet(ctx, "https://go.dev/dl/"+goVersion+"."+runtime.GOOS+"-"+runtime.GOARCH+".tar.gz")
+	resp, err = http.Get("https://go.dev/dl/" + goVersion + "." + runtime.GOOS + "-" + runtime.GOARCH + ".tar.gz")
 	check(err)
 	defer resp.Body.Close()
 
@@ -90,14 +85,6 @@ func ensureGo(cacheDir string) {
 
 	err = os.Rename(filepath.Join(downloadDir, "go"), filepath.Join(cacheDir, "go"))
 	check(err)
-}
-
-func httpGet(ctx context.Context, url string) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	return http.DefaultClient.Do(req)
 }
 
 func getLock(lockPath string, unlockErr string) func() {

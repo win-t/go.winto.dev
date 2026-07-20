@@ -1,10 +1,10 @@
 package gorundir
 
 import (
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -27,33 +27,29 @@ func Main() {
 	}
 
 	target := os.Args[1]
-	targetAbs, err := filepath.Abs(target)
-	check(err)
 
-	stat, err := os.Stat(targetAbs)
-	if errors.Is(err, os.ErrNotExist) || stat == nil || !stat.IsDir() {
-		// TODO(win): support git:: like terraform submodules does
-		exitErr("gorundir: " + target + " is not valid directory")
+	var abs, bin string
+	if strings.HasPrefix(target, "git::https://") { // TODO(win): support non git::https:// case
+		abs, bin = computeGitPath(cacheDir, target)
+	} else {
+		abs, bin = computeLocalPath(cacheDir, target)
 	}
 
-	compiledPath := getCompiledPath(cacheDir, targetAbs)
-
-	goBuild := exec.Command("go", "build", "-C", targetAbs, "-o", compiledPath, ".")
-	goBuild.Stdin, goBuild.Stdout, goBuild.Stderr = nil, os.Stderr, os.Stderr
-	err = goBuild.Run()
-	if err != nil {
+	if output, err := exec.Command("go", "build", "-C", abs, "-o", bin, ".").CombinedOutput(); err != nil {
+		os.Stderr.Write(output)
+		os.Stderr.WriteString("\n")
 		exitErr("gorundir: cannot build " + target)
 	}
 
 	var args []string
 	for i, arg := range os.Args[1:] {
 		if i == 0 && target == "." {
-			args = append(args, filepath.Base(targetAbs))
+			args = append(args, filepath.Base(abs))
 		} else {
 			args = append(args, arg)
 		}
 	}
 
-	err = syscall.Exec(compiledPath, args, os.Environ())
+	err = syscall.Exec(bin, args, os.Environ())
 	check(err)
 }
