@@ -4,7 +4,6 @@ go 1.26.5
 
 require (
 	github.com/creack/pty v1.1.24
-	github.com/gliderlabs/ssh v0.3.8
 	go.winto.dev/errors v1.9.0
 	tailscale.com v1.102.1
 )
