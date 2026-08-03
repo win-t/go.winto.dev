@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/creack/pty"
 	"go.winto.dev/errors"
@@ -31,7 +32,6 @@ var shell string
 var globalCtx context.Context
 
 func run() {
-
 	shell, _ = exec.LookPath("bash")
 	if shell == "" {
 		shell, _ = exec.LookPath("sh")
@@ -61,21 +61,21 @@ func run() {
 
 	tsstatus, err := ts.Up(globalCtx)
 	errors.Check(err)
+	defer time.Sleep(1 * time.Second) // give some time so all pending FIN is sent
 
 	log.Printf("tssh: server is up, IPs=%v", tsstatus.TailscaleIPs)
 
 	ln, err := ts.ListenSSH(":22")
 	errors.Check(err)
 
+	var wg sync.WaitGroup
+	defer wg.Wait()
 	go func() {
 		<-globalCtx.Done()
 		log.Printf("tssh: shutting down")
+		wg.Wait()
 		ln.Close()
 	}()
-
-	var wg sync.WaitGroup
-	defer wg.Wait()
-
 	for {
 		c, err := ln.Accept()
 		if globalCtx.Err() != nil {
@@ -91,6 +91,7 @@ func run() {
 				sess.Stderr().Write([]byte("\nInternal error, please check server logs\n"))
 				sess.Exit(1)
 			}
+			sess.Close()
 		})
 	}
 }
@@ -116,7 +117,7 @@ func handler(sess *tailssh.Session) {
 	go func() { io.Copy(ptmx, sess) }()
 	go func() { io.Copy(sess, ptmx) }()
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = tty, tty, tty
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true, Setctty: true}
+	cmd.SysProcAttr.Setctty = true
 
 	pty.Setsize(ptmx, &pty.Winsize{Rows: uint16(ptyReq.Window.Height), Cols: uint16(ptyReq.Window.Width)})
 	go func() {
@@ -141,6 +142,7 @@ func newCmd(sess *tailssh.Session) *exec.Cmd {
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "TSSH_PID="+strconv.Itoa(os.Getpid()))
 	cmd.Env = append(cmd.Env, sess.Environ()...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	return cmd
 }
 
