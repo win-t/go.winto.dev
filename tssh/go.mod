@@ -1,11 +1,11 @@
 module go.winto.dev/tssh
 
-go 1.26.5
+go 1.27.1
 
 require (
 	github.com/creack/pty v1.1.24
 	go.winto.dev/errors v1.9.0
-	tailscale.com v1.102.1
+	tailscale.com v1.102.4
 )
 
 require (
