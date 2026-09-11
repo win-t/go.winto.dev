@@ -15,9 +15,11 @@ import (
 	"github.com/creack/pty"
 	"go.winto.dev/errors"
 	"go.winto.dev/errors/errorsmain"
+	"tailscale.com/client/local"
 	_ "tailscale.com/feature/ssh"
 	"tailscale.com/logtail"
 	"tailscale.com/ssh/tailssh"
+	"tailscale.com/tailcfg"
 	"tailscale.com/tsnet"
 )
 
@@ -30,6 +32,7 @@ func main() { errorsmain.Exec(run) }
 
 var shell string
 var globalCtx context.Context
+var localClient *local.Client
 
 func run() {
 	shell, _ = exec.LookPath("bash")
@@ -65,6 +68,9 @@ func run() {
 
 	log.Printf("tssh: server is up, IPs=%v", tsstatus.TailscaleIPs)
 
+	localClient, err = ts.LocalClient()
+	errors.Check(err)
+
 	ln, err := ts.ListenSSH(":22")
 	errors.Check(err)
 
@@ -99,6 +105,17 @@ func run() {
 func handler(sess *tailssh.Session) {
 	ptyReq, winCh, isPty := sess.Pty()
 
+	if !hasCap(sess) {
+		log.Printf("tssh: session denied: addr=%s, user=%s\n", sess.RemoteAddr().String(), sess.User())
+		nl := "\n"
+		if isPty {
+			nl = "\n\r"
+		}
+		sess.Stderr().Write([]byte(nl + "Permission denied, missing " + string(tsshCap) + " capability" + nl))
+		sess.Exit(1)
+		return
+	}
+
 	log.Printf("tssh: new session: addr=%s, pty=%t\n", sess.RemoteAddr().String(), isPty)
 	defer log.Printf("tssh: session closed: addr=%s, pty=%t\n", sess.RemoteAddr().String(), isPty)
 
@@ -131,6 +148,18 @@ func handler(sess *tailssh.Session) {
 	errors.Check(err)
 
 	sessWait(sess, cmd)
+}
+
+const tsshCap tailcfg.PeerCapability = "tailscale.winto.dev/cap/tssh"
+
+func hasCap(sess *tailssh.Session) bool {
+	ctx, cancel := context.WithTimeout(sess.Context(), 10*time.Second)
+	defer cancel()
+
+	who, err := localClient.WhoIs(ctx, sess.RemoteAddr().String())
+	errors.Check(err)
+
+	return who.CapMap.HasCapability(tsshCap)
 }
 
 func newCmd(sess *tailssh.Session) *exec.Cmd {
