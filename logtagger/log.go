@@ -34,10 +34,19 @@ func (l *LogTagger) Tag(tag string) *Writer {
 var pool sync.Pool
 
 func (pw *Writer) Write(p []byte) (int, error) {
-	buf, _ := pool.Get().([]byte)
+	var buf []byte
+	poolItem, _ := pool.Get().(*[]byte)
+	if poolItem != nil {
+		buf = *poolItem
+		buf = buf[:0]
+	}
 	defer func() {
 		if len(buf) > 0 {
-			pool.Put(buf[:0])
+			if poolItem == nil {
+				poolItem = new([]byte)
+			}
+			*poolItem = buf
+			pool.Put(poolItem)
 		}
 	}()
 
