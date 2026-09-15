@@ -76,8 +76,8 @@ func (pw *Writer) Write(p []byte) (int, error) {
 
 	for len(toWrite) > 0 {
 		n, err := pw.Dst.Write(toWrite)
-		if err != nil {
-			return 0, err
+		if n == 0 && err != nil {
+			return len(p), err
 		}
 		toWrite = toWrite[n:]
 	}
