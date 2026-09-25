@@ -16,11 +16,15 @@ func Exit(code int) {
 }
 
 func Exec(f func()) {
+	ExecErrCallback(f, func(err error) { os.Stderr.WriteString(errors.Format(err)) })
+}
+
+func ExecErrCallback(f func(), errFn func(error)) {
 	if err := errors.Catch0(f); err != nil {
 		if code, ok := errors.AsType[ExitCode](err); ok {
 			os.Exit(int(code))
 		}
-		os.Stderr.WriteString(errors.Format(err))
+		errFn(err)
 		os.Exit(1)
 	}
 	os.Exit(0)
