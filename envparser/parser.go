@@ -1,6 +1,7 @@
 package envparser
 
 import (
+	"encoding"
 	"encoding/json"
 	"os"
 	"reflect"
@@ -49,6 +50,18 @@ func UnmarshalWithPrefix(target any, prefix string) error {
 		f := targetVal.Field(i)
 		if f.Addr().Type().Implements(unmarshalerType) {
 			if err := f.Addr().Interface().(Unmarshaler).UnmarshalEnv(val); err != nil {
+				parseError.append(key, val, err)
+			}
+			continue
+		}
+		if f.Addr().Type().Implements(textType) {
+			if err := f.Addr().Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(val)); err != nil {
+				parseError.append(key, val, err)
+			}
+			continue
+		}
+		if f.Addr().Type().Implements(binaryType) {
+			if err := f.Addr().Interface().(encoding.BinaryUnmarshaler).UnmarshalBinary([]byte(val)); err != nil {
 				parseError.append(key, val, err)
 			}
 			continue

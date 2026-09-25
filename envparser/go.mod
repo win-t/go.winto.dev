@@ -1,3 +1,3 @@
 module go.winto.dev/envparser
 
-go 1.20
+go 1.27.1

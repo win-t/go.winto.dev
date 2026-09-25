@@ -11,10 +11,11 @@ import (
 
 func TestParserTypes(t *testing.T) {
 	fakeEnv := map[string]string{
-		"b64":       "YXNkZg",
-		"FileBytes": "testdata/test.txt",
-		"b64ofjson": "eyJoZWxsbyI6IndvcmxkIn0K",
-		"testURL":   "https://google.com",
+		"b64":          "YXNkZg",
+		"FileBytes":    "testdata/test.txt",
+		"b64ofjson":    "eyJoZWxsbyI6IndvcmxkIn0K",
+		"testURL":      "https://google.com",
+		"testURLEmbed": "https://google.com",
 	}
 
 	for k, v := range fakeEnv {
@@ -32,7 +33,8 @@ func TestParserTypes(t *testing.T) {
 		B64OfJson envparser.Base64OfJSON[struct {
 			Hello string `json:"hello"`
 		}] `env:"b64ofjson"`
-		TestURL *url.URL `env:"testURL"`
+		TestURL      *url.URL `env:"testURL"`
+		TestURLEmbed url.URL  `env:"testURLEmbed"`
 	}
 
 	err := envparser.Unmarshal(&config)
@@ -52,13 +54,18 @@ func TestParserTypes(t *testing.T) {
 	if config.TestURL == nil || config.TestURL.Scheme != "https" || config.TestURL.Host != "google.com" {
 		t.FailNow()
 	}
+
+	if config.TestURLEmbed.Scheme != "https" || config.TestURLEmbed.Host != "google.com" {
+		t.FailNow()
+	}
 }
 
 func TestTypesError(t *testing.T) {
 	fakeEnv := map[string]string{
-		"b64":       "a",
-		"FileBytes": "testdata/nonexisted",
-		"b64ofjson": "e",
+		"b64":          "a",
+		"FileBytes":    "testdata/nonexisted",
+		"b64ofjson":    "e",
+		"testURLEmbed": ":::::::::::",
 	}
 
 	for k, v := range fakeEnv {
@@ -76,6 +83,7 @@ func TestTypesError(t *testing.T) {
 		B64OfJson envparser.Base64OfJSON[struct {
 			Hello string `json:"hello"`
 		}] `env:"b64ofjson"`
+		TestURLEmbed url.URL `env:"testURLEmbed"`
 	}
 
 	err := envparser.Unmarshal(&config)
@@ -102,6 +110,10 @@ func TestTypesError(t *testing.T) {
 	}
 
 	if config.B64OfJson.Value.Hello != "" {
+		t.FailNow()
+	}
+
+	if config.TestURLEmbed != (url.URL{}) {
 		t.FailNow()
 	}
 }
