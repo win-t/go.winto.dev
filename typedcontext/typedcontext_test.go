@@ -4,7 +4,25 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"unsafe"
 )
+
+func TestTypeSizeMust0(t *testing.T) {
+	if unsafe.Sizeof(key[struct {
+		a string
+		b int
+		c float64
+	}]{}) != 0 {
+		t.FailNow()
+	}
+	if unsafe.Sizeof(key[interface {
+		a() string
+		b() int
+		c() float64
+	}]{}) != 0 {
+		t.FailNow()
+	}
+}
 
 func TestNormalOperation(t *testing.T) {
 	ctx := context.Background()

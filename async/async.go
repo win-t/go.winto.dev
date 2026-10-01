@@ -10,6 +10,18 @@ import (
 
 type WaitGroup struct{ sync.WaitGroup }
 
+func (wg *WaitGroup) Run0(f func()) <-chan error {
+	ch := make(chan error, 1)
+	wg.Go(func() { ch <- errors.Catch0(f) })
+	return ch
+}
+
+func Run0(f func()) <-chan error {
+	ch := make(chan error, 1)
+	go func() { ch <- errors.Catch0(f) }()
+	return ch
+}
+
 // Run f in new goroutine, and register it into the waitgroup, and return chan to get the value returned by f or the panic value if f panic.
 func (wg *WaitGroup) Run(f func() error) <-chan error {
 	ch := make(chan error, 1)
