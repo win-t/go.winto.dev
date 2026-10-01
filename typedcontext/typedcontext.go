@@ -3,6 +3,8 @@ package typedcontext
 
 import (
 	"context"
+	"os"
+	"os/signal"
 )
 
 type key[T any] struct{ _ [0]*T }
@@ -49,4 +51,27 @@ func CancelCause(ctx context.Context, err error) bool {
 		cancel(err)
 	}
 	return ok
+}
+
+type CauseBySignal struct {
+	os.Signal
+}
+
+func (e CauseBySignal) Error() string {
+	return "context canceled by signal " + e.Signal.String()
+}
+
+func WithCancelSignal(ctx context.Context, sig os.Signal, sigs ...os.Signal) (context.Context, context.CancelCauseFunc) {
+	ctx, cancel := WithCancelCause(ctx)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, append([]os.Signal{sig}, sigs...)...)
+	go func() {
+		select {
+		case s := <-sigCh:
+			cancel(CauseBySignal{s})
+		case <-ctx.Done():
+		}
+		signal.Stop(sigCh)
+	}()
+	return ctx, cancel
 }
