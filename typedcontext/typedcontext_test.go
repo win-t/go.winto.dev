@@ -2,6 +2,7 @@ package typedcontext
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 	"unsafe"
@@ -79,6 +80,29 @@ func TestShouldWorkOnInterface(t *testing.T) {
 	ctx = New(ctx, a)
 	MustGet[x](ctx).a()
 	if r != "hello" {
+		t.FailNow()
+	}
+}
+
+func TestCancel(t *testing.T) {
+	ctx, _ := WithCancel(context.Background())
+	if !Cancel(ctx) {
+		t.FailNow()
+	}
+	if ctx.Err() == nil {
+		t.FailNow()
+	}
+}
+
+func TestCancelCause(t *testing.T) {
+	ctx, _ := WithCancelCause(context.Background())
+	if !CancelCause(ctx, errors.New("test")) {
+		t.FailNow()
+	}
+	if ctx.Err() == nil {
+		t.FailNow()
+	}
+	if context.Cause(ctx).Error() != "test" {
 		t.FailNow()
 	}
 }

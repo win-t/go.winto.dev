@@ -22,3 +22,31 @@ func Get[T any](ctx context.Context) (T, bool) {
 func MustGet[T any](ctx context.Context) T {
 	return ctx.Value(key[T]{}).(T)
 }
+
+func WithCancel(ctx context.Context) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(ctx)
+	ctx = New(ctx, cancel)
+	return ctx, cancel
+}
+
+func Cancel(ctx context.Context) bool {
+	cancel, ok := Get[context.CancelFunc](ctx)
+	if ok {
+		cancel()
+	}
+	return ok
+}
+
+func WithCancelCause(ctx context.Context) (context.Context, context.CancelCauseFunc) {
+	ctx, cancel := context.WithCancelCause(ctx)
+	ctx = New(ctx, cancel)
+	return ctx, cancel
+}
+
+func CancelCause(ctx context.Context, err error) bool {
+	cancel, ok := Get[context.CancelCauseFunc](ctx)
+	if ok {
+		cancel(err)
+	}
+	return ok
+}
