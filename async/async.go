@@ -10,6 +10,10 @@ import (
 
 type WaitGroup struct{ sync.WaitGroup }
 
+func (wg *WaitGroup) Run0AndCancel(cancel context.CancelCauseFunc, f func()) {
+	wg.Go(func() { cancel(errors.Catch0(f)) })
+}
+
 func (wg *WaitGroup) Run0(f func()) <-chan error {
 	ch := make(chan error, 1)
 	wg.Go(func() { ch <- errors.Catch0(f) })
