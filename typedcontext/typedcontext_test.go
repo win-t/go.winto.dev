@@ -106,3 +106,17 @@ func TestCancelCause(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestPartialCancel(t *testing.T) {
+	ctx1, _ := WithCancel(context.Background())
+	ctx2, _ := WithCancel(ctx1)
+	if !Cancel(ctx2) {
+		t.FailNow()
+	}
+	if ctx2.Err() == nil {
+		t.FailNow()
+	}
+	if ctx1.Err() != nil {
+		t.FailNow()
+	}
+}
