@@ -2,10 +2,20 @@ package async
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 
 	"go.winto.dev/errors"
 )
+
+type WaitGroup struct{ sync.WaitGroup }
+
+// Run f in new goroutine, and register it into the waitgroup, and return chan to get the value returned by f or the panic value if f panic.
+func (wg *WaitGroup) Run(f func() error) <-chan error {
+	ch := make(chan error, 1)
+	wg.Go(func() { ch <- errors.Catch(f) })
+	return ch
+}
 
 // Run the f function in new go routine, and return chan to get the value returned by f or the panic value if f panic.
 func Run(f func() error) <-chan error {
@@ -17,6 +27,16 @@ func Run(f func() error) <-chan error {
 type Result[R any] struct {
 	Result R
 	Error  error
+}
+
+// Run2 similar to [WaitGroup.Run] but also returning other value not just error.
+func (wg *WaitGroup) Run2[R any](f func() (R, error)) <-chan Result[R] {
+	ch := make(chan Result[R], 1)
+	wg.Go(func() {
+		r, err := errors.Catch2(f)
+		ch <- Result[R]{r, err}
+	})
+	return ch
 }
 
 // Run2 similar with [Run] but also returning other value not just error.
