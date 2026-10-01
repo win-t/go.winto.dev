@@ -24,6 +24,16 @@ func (s Sem) Run(ctx context.Context, f func(ctx context.Context) error) error {
 	return f(ctx)
 }
 
+func (s Sem) Run2[R any](ctx context.Context, f func(ctx context.Context) (R, error)) (ret R, err error) {
+	select {
+	case s.ch <- struct{}{}:
+	case <-ctx.Done():
+		return ret, ctx.Err()
+	}
+	defer func() { <-s.ch }()
+	return f(ctx)
+}
+
 // RunNoPanic is similar to [Sem.Run] but assuming f will not panic.
 //
 // if f panic, the semaphore count will not be restored.
@@ -38,95 +48,110 @@ func (s Sem) RunNoPanic(ctx context.Context, f func(ctx context.Context) error) 
 	return err
 }
 
-type Mutex struct{ sync.Mutex }
+func (s Sem) Run2NoPanic[R any](ctx context.Context, f func(ctx context.Context) (R, error)) (ret R, err error) {
+	select {
+	case s.ch <- struct{}{}:
+	case <-ctx.Done():
+		return ret, ctx.Err()
+	}
+	ret, err = f(ctx)
+	<-s.ch
+	return ret, err
+}
 
-// Run runs a function with mutex control.
-func (m *Mutex) Run(f func()) {
+func mutexRun[M sync.Locker](m M, f func()) {
 	m.Lock()
 	defer m.Unlock()
 	f()
 }
 
-func (m *Mutex) RunE(f func() error) error {
+func mutexRun1[M sync.Locker, R any](m M, f func() R) R {
 	m.Lock()
 	defer m.Unlock()
 	return f()
 }
 
-// RunNoPanic is similar to [Mutex.Run] but assuming f will not panic.
-//
-// if f panic, the mutex will not be unlocked.
-func (m *Mutex) RunNoPanic(f func()) {
+func mutexRun2[M sync.Locker, R any](m M, f func() (R, error)) (ret R, err error) {
+	m.Lock()
+	defer m.Unlock()
+	return f()
+}
+
+func mutexRunNoPanic[M sync.Locker](m M, f func()) {
 	m.Lock()
 	f()
 	m.Unlock()
 }
 
-func (m *Mutex) RunENoPanic(f func() error) error {
+func mutexRun1NoPanic[M sync.Locker, R any](m M, f func() R) (ret R) {
 	m.Lock()
-	err := f()
+	ret = f()
 	m.Unlock()
-	return err
+	return ret
 }
+
+func mutexRun2NoPanic[M sync.Locker, R any](m M, f func() (R, error)) (ret R, err error) {
+	m.Lock()
+	ret, err = f()
+	m.Unlock()
+	return ret, err
+}
+
+type rlockWrapper struct{ inner *sync.RWMutex }
+
+func (m rlockWrapper) Lock()   { m.inner.RLock() }
+func (m rlockWrapper) Unlock() { m.inner.RUnlock() }
+
+type Mutex struct{ sync.Mutex }
+
+func (m *Mutex) Run(f func()) { mutexRun(m, f) }
+
+func (m *Mutex) Run1[R any](f func() R) R { return mutexRun1(m, f) }
+
+func (m *Mutex) Run2[R any](f func() (R, error)) (R, error) { return mutexRun2(m, f) }
+
+func (m *Mutex) RunNoPanic(f func()) { mutexRunNoPanic(m, f) }
+
+func (m *Mutex) Run1NoPanic[R any](f func() R) R { return mutexRun1NoPanic(m, f) }
+
+func (m *Mutex) Run2NoPanic[R any](f func() (R, error)) (R, error) { return mutexRun2NoPanic(m, f) }
 
 type RWMutex struct{ sync.RWMutex }
 
-// Run runs a function with mutex control.
-func (m *RWMutex) Run(f func()) {
-	m.Lock()
-	defer m.Unlock()
-	f()
-}
+func (m *RWMutex) Run(f func()) { mutexRun(m, f) }
 
-func (m *RWMutex) RunE(f func() error) error {
-	m.Lock()
-	defer m.Unlock()
-	return f()
-}
+func (m *RWMutex) Run1[R any](f func() R) R { return mutexRun1(m, f) }
 
-// RunNoPanic is similar to [RWMutex.Run] but assuming f will not panic.
-//
-// if f panic, the mutex will not be unlocked.
-func (m *RWMutex) RunNoPanic(f func()) {
-	m.Lock()
-	f()
-	m.Unlock()
-}
+func (m *RWMutex) Run2[R any](f func() (R, error)) (R, error) { return mutexRun2(m, f) }
 
-func (m *RWMutex) RunENoPanic(f func() error) error {
-	m.Lock()
-	err := f()
-	m.Unlock()
-	return err
-}
+func (m *RWMutex) RunNoPanic(f func()) { mutexRunNoPanic(m, f) }
 
-// RunRead runs a function with mutex control for read-only data.
+func (m *RWMutex) Run1NoPanic[R any](f func() R) R { return mutexRun1NoPanic(m, f) }
+
+func (m *RWMutex) Run2NoPanic[R any](f func() (R, error)) (R, error) { return mutexRun2NoPanic(m, f) }
+
 func (m *RWMutex) RunRead(f func()) {
-	m.RLock()
-	defer m.RUnlock()
-	f()
+	mutexRun(rlockWrapper{inner: &m.RWMutex}, f)
 }
 
-func (m *RWMutex) RunERead(f func() error) error {
-	m.RLock()
-	defer m.RUnlock()
-	return f()
+func (m *RWMutex) Run1Read[R any](f func() R) R {
+	return mutexRun1(rlockWrapper{inner: &m.RWMutex}, f)
 }
 
-// RunReadNoPanic is similar to [RWMutex.RunRead] but assuming f will not panic.
-//
-// if f panic, the mutex will not be unlocked.
+func (m *RWMutex) Run2Read[R any](f func() (R, error)) (R, error) {
+	return mutexRun2(rlockWrapper{inner: &m.RWMutex}, f)
+}
+
 func (m *RWMutex) RunReadNoPanic(f func()) {
-	m.RLock()
-	f()
-	m.RUnlock()
+	mutexRunNoPanic(rlockWrapper{inner: &m.RWMutex}, f)
 }
 
-func (m *RWMutex) RunEReadNoPanic(f func() error) error {
-	m.RLock()
-	err := f()
-	m.RUnlock()
-	return err
+func (m *RWMutex) Run1ReadNoPanic[R any](f func() R) R {
+	return mutexRun1NoPanic(rlockWrapper{inner: &m.RWMutex}, f)
+}
+
+func (m *RWMutex) Run2ReadNoPanic[R any](f func() (R, error)) (R, error) {
+	return mutexRun2NoPanic(rlockWrapper{inner: &m.RWMutex}, f)
 }
 
 type WaitGroup struct{ sync.WaitGroup }
@@ -139,7 +164,7 @@ func (wg *WaitGroup) Run(f func() error) <-chan error {
 }
 
 // WaitGroupRun2 similar to [WaitGroup.Run] but also returning other value not just error.
-func WaitGroupRun2[R any](wg *WaitGroup, f func() (R, error)) <-chan Result[R] {
+func (wg *WaitGroup) Run2[R any](f func() (R, error)) <-chan Result[R] {
 	ch := make(chan Result[R], 1)
 	wg.Go(func() {
 		r, err := errors.Catch2(f)
