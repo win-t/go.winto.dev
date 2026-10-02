@@ -1,5 +1,5 @@
-go.winto.dev/envparser v1.5.1 h1:RDrWiKU51X38LlBLnRQ75C+aaZ4yGqGFuEKGW8T9xYo=
-go.winto.dev/envparser v1.5.1/go.mod h1:PZugOgcdWhmETtmXtaP3x/kD7hwxGfmxS1+FyKp75/4=
+go.winto.dev/envparser v1.6.1 h1:eiDxrryYcbvgpbGSgQmr1mFc2UmakH7LvUGsFt+FvEw=
+go.winto.dev/envparser v1.6.1/go.mod h1:PZugOgcdWhmETtmXtaP3x/kD7hwxGfmxS1+FyKp75/4=
 go.winto.dev/errors v1.12.1 h1:oeL/j/39igBdNrk1CVKnTP5R5KHyTkhcAdHtWG3fpGc=
 go.winto.dev/errors v1.12.1/go.mod h1:e404q7C6zLgl5iWT/It2Icu5KgJuCc9Ngj6lrn5cdDg=
 go.winto.dev/typedcontext v1.3.0 h1:9mX4Vkb/g+L+R9M/bPmUihYnaL5CtTuL10Hh/DfXf0U=
