@@ -30,7 +30,8 @@ func Exec(f func(ctx context.Context), envStore any, module string, errFormatFil
 				Exit(1)
 			}
 		}
-		ctx, _ := typedcontext.WithCancelSignal(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+		ctx, cancel := typedcontext.WithCancelSignal(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+		defer cancel(nil)
 		f(ctx)
 		if err := context.Cause(ctx); err != nil {
 			if _, graceful := errors.AsType[typedcontext.CauseBySignal](err); !graceful {
