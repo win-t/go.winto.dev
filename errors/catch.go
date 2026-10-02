@@ -1,28 +1,29 @@
 package errors
 
+func Recover(err *error) {
+	rec := recover()
+	if rec == nil {
+		return
+	}
+
+	recErr, ok := rec.(error)
+	if !ok {
+		*err = &traced[any]{getLocs(1), rec}
+		return
+	}
+
+	if len(StackTrace(recErr)) > 0 {
+		*err = recErr
+		return
+	}
+
+	// error from recovered panic must have stack trace
+	*err = Errorf("panic: %w", recErr)
+}
+
 // run f, if f panic or returned, that value will be returned by this function.
 func Catch(f func() error) (err error) {
-	defer func() {
-		rec := recover()
-		if rec == nil {
-			return
-		}
-
-		recErr, ok := rec.(error)
-		if !ok {
-			err = &traced[any]{getLocs(1), rec}
-			return
-		}
-
-		if len(StackTrace(recErr)) > 0 {
-			err = recErr
-			return
-		}
-
-		// error from recovered panic must have stack trace
-		err = Errorf("panic: %w", recErr)
-	}()
-
+	defer Recover(&err)
 	return f()
 }
 
