@@ -1,2 +1,2 @@
-go.winto.dev/errors v1.10.0 h1:6FwHzi+N812VaanWruWrLkjrqsbCy2O/VkfqofwCaa8=
-go.winto.dev/errors v1.10.0/go.mod h1:e404q7C6zLgl5iWT/It2Icu5KgJuCc9Ngj6lrn5cdDg=
+go.winto.dev/errors v1.12.0 h1:k5WJBh05DMDnc4v7ocG9MSOEDCOdM+D04HtYrNoOmH8=
+go.winto.dev/errors v1.12.0/go.mod h1:e404q7C6zLgl5iWT/It2Icu5KgJuCc9Ngj6lrn5cdDg=
