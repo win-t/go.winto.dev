@@ -2,6 +2,7 @@ package envparser_test
 
 import (
 	"errors"
+	"flag"
 	"os"
 	"reflect"
 	"testing"
@@ -31,6 +32,7 @@ func TestError(t *testing.T) {
 		"IntSlice":   "1,aa,3",
 		"Dur":        "aa",
 		"Loc":        "Asia/Somewhere",
+		"JsonPtr":    `{"Hello":"world"}`,
 	}
 
 	for k, v := range fakeEnv {
@@ -50,6 +52,9 @@ func TestError(t *testing.T) {
 		IntSlice   []int
 		Dur        time.Duration
 		Loc        *time.Location
+		JsonPtr    *struct {
+			Hello string
+		}
 	}
 	config.TestKey2 = 22
 	config.AddOne = 44
@@ -85,6 +90,10 @@ func TestError(t *testing.T) {
 		len(config.IntSlice) != 0 ||
 		config.Dur != 3*time.Minute ||
 		config.Loc != nil {
+		t.FailNow()
+	}
+
+	if config.JsonPtr == nil || config.JsonPtr.Hello != "world" {
 		t.FailNow()
 	}
 }
@@ -271,6 +280,23 @@ func TestRequiredButMissing(t *testing.T) {
 	}
 
 	if parseError.Items[0].Cause != envparser.ErrCauseRequired {
+		t.FailNow()
+	}
+}
+
+func TestFlagValue(t *testing.T) {
+	var config struct {
+		S string
+		I int
+	}
+	envparser.RegisterFlagSet(&config, flag.CommandLine)
+	if flag.CommandLine.Parse([]string{"-S=hello", "-I=12"}) != nil {
+		t.FailNow()
+	}
+	if config.S != "hello" {
+		t.FailNow()
+	}
+	if config.I != 12 {
 		t.FailNow()
 	}
 }

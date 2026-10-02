@@ -12,6 +12,7 @@ import (
 func TestParserTypes(t *testing.T) {
 	fakeEnv := map[string]string{
 		"b64":          "YXNkZg",
+		"b64ptr":       "YXNkZg",
 		"FileBytes":    "testdata/test.txt",
 		"b64ofjson":    "eyJoZWxsbyI6IndvcmxkIn0K",
 		"testURL":      "https://google.com",
@@ -28,7 +29,8 @@ func TestParserTypes(t *testing.T) {
 	}()
 
 	var config struct {
-		B64       envparser.Base64 `env:"b64"`
+		B64       envparser.Base64  `env:"b64"`
+		B64Ptr    *envparser.Base64 `env:"b64ptr"`
 		FileBytes envparser.File
 		B64OfJson envparser.Base64OfJSON[struct {
 			Hello string `json:"hello"`
@@ -56,6 +58,10 @@ func TestParserTypes(t *testing.T) {
 	}
 
 	if config.TestURLEmbed.Scheme != "https" || config.TestURLEmbed.Host != "google.com" {
+		t.FailNow()
+	}
+
+	if config.B64Ptr == nil || string(*config.B64Ptr) != "asdf" {
 		t.FailNow()
 	}
 }

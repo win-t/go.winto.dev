@@ -1,10 +1,8 @@
 package envparser
 
 import (
-	"encoding"
 	"encoding/base64"
 	"encoding/json"
-	"net/url"
 	"os"
 	"reflect"
 	"time"
@@ -12,16 +10,11 @@ import (
 
 type Unmarshaler interface{ UnmarshalEnv(val string) error }
 
-var (
-	unmarshalerType = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
-	textType        = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
-	binaryType      = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
-)
-
+// for type that support parsing from string, but not implement TextUnmarshaler or BinaryUnmarshaler
+// also not json unmarshalable
 var nativeUnmarshaler = map[reflect.Type]func(val string) (any, error){
 	reflect.TypeOf((*time.Duration)(nil)).Elem():  func(val string) (any, error) { return time.ParseDuration(val) },
 	reflect.TypeOf((**time.Location)(nil)).Elem(): func(val string) (any, error) { return time.LoadLocation(val) },
-	reflect.TypeOf((**url.URL)(nil)).Elem():       func(val string) (any, error) { return url.Parse(val) },
 }
 
 type Base64 []byte
