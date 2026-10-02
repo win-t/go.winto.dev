@@ -143,6 +143,7 @@ var (
 	unmarshalerType = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
 	textType        = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 	binaryType      = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
+	flagValueType   = reflect.TypeOf((*flag.Value)(nil)).Elem()
 )
 
 func setValueIfImplemented(f reflect.Value, val string) (bool, error) {
@@ -154,6 +155,9 @@ func setValueIfImplemented(f reflect.Value, val string) (bool, error) {
 	}
 	if f.Type().Implements(binaryType) {
 		return true, f.Interface().(encoding.BinaryUnmarshaler).UnmarshalBinary([]byte(val))
+	}
+	if f.Type().Implements(flagValueType) {
+		return true, f.Interface().(flag.Value).Set(val)
 	}
 	return false, nil
 }
