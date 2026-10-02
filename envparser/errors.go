@@ -23,8 +23,8 @@ func (p *ParseError) Error() string {
 	}
 
 	return fmt.Sprintf(
-		"%d errors occurred:\n\t%s\n\n",
-		len(points), strings.Join(points, "\n\t"))
+		"%d errors occurred:\n  %s\n",
+		len(points), strings.Join(points, "\n  "))
 }
 
 func (p *ParseError) append(key, value string, cause error) {
