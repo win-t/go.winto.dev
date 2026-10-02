@@ -3,6 +3,7 @@ package typedcontext
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 )
@@ -74,4 +75,12 @@ func WithCancelSignal(ctx context.Context, sig os.Signal, sigs ...os.Signal) (co
 		signal.Stop(sigCh)
 	}()
 	return ctx, cancel
+}
+
+func CauseSignal(ctx context.Context) os.Signal {
+	cause, ok := errors.AsType[CauseBySignal](context.Cause(ctx))
+	if !ok {
+		return nil
+	}
+	return cause.Signal
 }

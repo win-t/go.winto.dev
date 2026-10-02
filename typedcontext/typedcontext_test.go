@@ -3,7 +3,10 @@ package typedcontext
 import (
 	"context"
 	"errors"
+	"os"
 	"reflect"
+	"strings"
+	"syscall"
 	"testing"
 	"unsafe"
 )
@@ -117,6 +120,26 @@ func TestPartialCancel(t *testing.T) {
 		t.FailNow()
 	}
 	if ctx1.Err() != nil {
+		t.FailNow()
+	}
+}
+
+func TestSignal(t *testing.T) {
+	ctx, cancel := WithCancelSignal(context.Background(), syscall.SIGUSR1)
+	defer cancel(nil)
+
+	if CauseSignal(ctx) != nil {
+		t.FailNow()
+	}
+
+	syscall.Kill(os.Getpid(), syscall.SIGUSR1)
+	<-ctx.Done()
+
+	if CauseSignal(ctx) != syscall.SIGUSR1 {
+		t.FailNow()
+	}
+
+	if !strings.Contains(context.Cause(ctx).Error(), syscall.SIGUSR1.String()) {
 		t.FailNow()
 	}
 }
