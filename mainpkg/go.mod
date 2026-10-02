@@ -1,5 +1,9 @@
 module go.winto.dev/mainpkg
 
-go 1.26.2
+go 1.27.1
 
-require go.winto.dev/errors v1.8.0
+require (
+	go.winto.dev/envparser v1.5.1
+	go.winto.dev/errors v1.12.1
+	go.winto.dev/typedcontext v1.2.0
+)

@@ -3,135 +3,57 @@ package mainpkg
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"os"
-	"os/signal"
-	"strings"
-	"sync"
+	"strconv"
+	"sync/atomic"
 	"syscall"
 
+	"go.winto.dev/envparser"
 	"go.winto.dev/errors"
+	"go.winto.dev/typedcontext"
 )
 
-var (
-	mu        sync.RWMutex
-	called    bool
-	sig       os.Signal
-	errLogger func(error)
-)
+var execCalled atomic.Bool
 
-// just a marker type to avoid Opt being called with outside this package
-type optParam struct{ _ struct{} }
-
-type Opt func(optParam)
-
-func ErrorLogger(logger func(error)) Opt {
-	return func(optParam) {
-		errLogger = logger
+func Exec(f func(ctx context.Context), envStore any, module string, errFormatFilterPkg ...string) {
+	if !execCalled.CompareAndSwap(false, true) {
+		panic("mainpkg: Exec only allowed to be called once")
 	}
-}
 
-func ErrorFormatFilterPkgs(packages ...string) Opt {
-	return func(optParam) {
-		errors.SetFormatFilterPkgs(packages...)
+	main := func() {
+		errors.SetFormatFilterPkgs(append([]string{"main", module}, errFormatFilterPkg...)...)
+		if envStore != nil {
+			err := envparser.Unmarshal(envStore)
+			if err != nil {
+				slog.Error(err.Error())
+				Exit(1)
+			}
+		}
+		ctx, _ := typedcontext.WithCancelSignal(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+		f(ctx)
+		if err := context.Cause(ctx); err != nil {
+			if _, graceful := errors.AsType[typedcontext.CauseBySignal](err); !graceful {
+				errors.Check(err)
+			}
+		}
 	}
-}
 
-// Execute f with ctx that will be cancelled by SIGINT or SIGTERM, this function call os.Exit() after f returned or panic
-//
-// if the panic value throw by f is [ExitCode], it will be used as exit code,
-// otherwise it will print stack trace and exit with code 1.
-//
-// Exec cannot be called twice.
-func Exec(f func(ctx context.Context), opts ...Opt) {
-	mu.Lock()
-	if called {
-		fmt.Fprintln(os.Stderr, "FATAL: mainpkg.Exec called twice")
+	if err := errors.Catch0(main); err != nil {
+		if code, ok := errors.AsType[ExitCode](err); ok {
+			os.Exit(int(code))
+		}
+		slog.Error(errors.Format(err))
 		os.Exit(1)
 	}
 
-	for _, o := range opts {
-		o(optParam{})
-	}
-
-	ctx, done := context.WithCancel(context.Background())
-
-	exitCode := 0
-	defer func() { os.Exit(exitCode) }()
-
-	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
-
-		select {
-		case <-ctx.Done():
-			signal.Stop(c)
-		case s := <-c:
-			signal.Stop(c)
-			mu.Lock()
-			sig = s
-			mu.Unlock()
-			done()
-		}
-	}()
-
-	called = true
-	mu.Unlock()
-	err := errors.Catch0(func() { f(ctx) })
-	done()
-	mu.Lock()
-
-	if err == nil {
-		return
-	}
-
-	if ec, ok := errors.AsType[ExitCode](err); ok {
-		exitCode = int(ec)
-		return
-	}
-
-	exitCode = 1
-	doLogError(err)
+	os.Exit(0)
 }
 
 type ExitCode int
 
-func (e ExitCode) Error() string {
-	return fmt.Sprintf("mainpkg.ExitCode (%d)", int(e))
-}
+func (e ExitCode) Error() string { return "exit code: " + strconv.Itoa(int(e)) }
 
-// Return nil if graceful shutdown is not requested yet, otherwise return the signal
-//
-// possible signals are SIGINT or SIGTERM
-func Interrupted() os.Signal {
-	mu.RLock()
-	ret := sig
-	mu.RUnlock()
-	return ret
-}
-
-// Run f in a new goroutine, catch panic and log it
-func Go(f func()) {
-	mu.Lock()
-	defer mu.Unlock()
-	if !called {
-		fmt.Fprintln(os.Stderr, "FATAL: mainpkg.Go must be called after mainpkg.Exec")
-		os.Exit(1)
-	}
-
-	go func() {
-		err := errors.Catch0(f)
-		if err == nil {
-			return
-		}
-		doLogError(err)
-	}()
-}
-
-func doLogError(err error) {
-	if errLogger != nil {
-		errLogger(err)
-	} else {
-		fmt.Fprintln(os.Stderr, strings.TrimSuffix(errors.Format(err), "\n"))
-	}
+func Exit(code int) {
+	panic(ExitCode(code))
 }
