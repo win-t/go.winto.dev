@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-type pcbuff = [512]uintptr
+type pcbuff = [128]uintptr
 
 var pcbuffPool sync.Pool
 

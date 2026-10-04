@@ -24,12 +24,6 @@ func Recover(err *error) {
 	*err = Errorf("panic: %w", recErr)
 }
 
-// run f, if f panic or returned, that value will be returned by this function.
-func Catch(f func() error) (err error) {
-	defer Recover(&err)
-	return f()
-}
-
 // like [Catch] but suitable for function doesn't expect to return error
 func Catch0(f func()) (err error) {
 	defer Recover(&err)
@@ -37,14 +31,60 @@ func Catch0(f func()) (err error) {
 	return nil
 }
 
-// like [Catch] but suitable for function expect to return single value
-func Catch1[Ret any](f func() Ret) (ret Ret, err error) {
+// run f, if f panic or returned, that value will be returned by this function.
+func Catch(f func() error) (err error) {
 	defer Recover(&err)
-	return ret, Catch0(func() { ret = f() })
+	return f()
+}
+
+// like [Catch] but suitable for function expect to return single value
+func Catch1[R any](f func() R) (ret R, err error) {
+	defer Recover(&err)
+	return f(), err
+}
+
+func Catch1Args1[R any, A1 any](f func(A1) R, a1 A1) (ret R, err error) {
+	defer Recover(&err)
+	return f(a1), err
+}
+
+func Catch1Args2[R any, A1 any, A2 any](f func(A1, A2) R, a1 A1, a2 A2) (ret R, err error) {
+	defer Recover(&err)
+	return f(a1, a2), err
+}
+
+func Catch1Args3[R any, A1 any, A2 any, A3 any](f func(A1, A2, A3) R, a1 A1, a2 A2, a3 A3) (ret R, err error) {
+	defer Recover(&err)
+	return f(a1, a2, a3), err
+}
+
+func Catch1Args4[R any, A1 any, A2 any, A3 any, A4 any](f func(A1, A2, A3, A4) R, a1 A1, a2 A2, a3 A3, a4 A4) (ret R, err error) {
+	defer Recover(&err)
+	return f(a1, a2, a3, a4), err
 }
 
 // like [Catch] but suitable for function that return value and error.
-func Catch2[Ret any](f func() (Ret, error)) (ret Ret, err error) {
+func Catch2[R any](f func() (R, error)) (ret R, err error) {
 	defer Recover(&err)
 	return f()
+}
+
+func Catch2Args1[R any, A1 any](f func(A1) (R, error), a1 A1) (ret R, err error) {
+	defer Recover(&err)
+	return f(a1)
+}
+
+func Catch2Args2[R any, A1 any, A2 any](f func(A1, A2) (R, error), a1 A1, a2 A2) (ret R, err error) {
+	defer Recover(&err)
+	return f(a1, a2)
+}
+
+func Catch2Args3[R any, A1 any, A2 any, A3 any](f func(A1, A2, A3) (R, error), a1 A1, a2 A2, a3 A3) (ret R, err error) {
+	defer Recover(&err)
+	return f(a1, a2, a3)
+}
+
+func Catch2Args4[R any, A1 any, A2 any, A3 any, A4 any](f func(A1, A2, A3, A4) (R, error), a1 A1, a2 A2, a3 A3, a4 A4) (ret R, err error) {
+	defer Recover(&err)
+	return f(a1, a2, a3, a4)
 }
