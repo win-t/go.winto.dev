@@ -16,6 +16,10 @@ jobs:
           go-version: stable
       - name: go test
         run: |
-          go work init
-          go work use -r .
-          go test -race go.winto.dev/...
+          for x in */go.mod; do
+            (
+              echo "${x%%/go.mod}"
+              cd "${x%%/go.mod}"
+              go test -race go.winto.dev/...
+            )
+          done
