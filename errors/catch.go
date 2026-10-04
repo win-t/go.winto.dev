@@ -1,5 +1,8 @@
 package errors
 
+// this function only allowed to be called as deferred function, it will catch error and store it to err pointer.
+//
+// if this function is not called as deferred function, it will not work since `recover()` will return nil.
 func Recover(err *error) {
 	rec := recover()
 	if rec == nil {
@@ -27,17 +30,21 @@ func Catch(f func() error) (err error) {
 	return f()
 }
 
-// like [Catch] but suitable for function that return 2 values.
-func Catch2[Ret any](f func() (Ret, error)) (Ret, error) {
-	var ret Ret
-	return ret, Catch(func() error {
-		var err error
-		ret, err = f()
-		return err
-	})
+// like [Catch] but suitable for function doesn't expect to return error
+func Catch0(f func()) (err error) {
+	defer Recover(&err)
+	f()
+	return nil
 }
 
-// like [Catch] but suitable for function doesn't expect to return error
-func Catch0(f func()) error {
-	return Catch(func() error { f(); return nil })
+// like [Catch] but suitable for function expect to return single value
+func Catch1[Ret any](f func() Ret) (ret Ret, err error) {
+	defer Recover(&err)
+	return ret, Catch0(func() { ret = f() })
+}
+
+// like [Catch] but suitable for function that return value and error.
+func Catch2[Ret any](f func() (Ret, error)) (ret Ret, err error) {
+	defer Recover(&err)
+	return f()
 }
