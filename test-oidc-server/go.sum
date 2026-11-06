@@ -1,5 +1,5 @@
-github.com/go-jose/go-jose/v4 v4.1.4 h1:moDMcTHmvE6Groj34emNPLs/qtYXRVcd6S7NHbHz3kA=
-github.com/go-jose/go-jose/v4 v4.1.4/go.mod h1:x4oUasVrzR7071A4TnHLGSPpNOm2a21K9Kf04k1rs08=
+github.com/go-jose/go-jose/v4 v4.1.6 h1:sNRkftxFJxwsILiQukqp5z83QBSmntVwmgRY7AqBDO4=
+github.com/go-jose/go-jose/v4 v4.1.6/go.mod h1:x4oUasVrzR7071A4TnHLGSPpNOm2a21K9Kf04k1rs08=
 go.winto.dev/errors v1.6.1 h1:I456N9x/BUTK9BWAKAhPvk5arHMX3s1kFIC1BfHiAqM=
 go.winto.dev/errors v1.6.1/go.mod h1:x6lidXH4baa0nCXMkXDBzeiPI5s/xiZKYhHCrzleNzc=
 go.winto.dev/httphandler v1.1.1 h1:Ff40edNsm2Nk8FJuynn5bRypsmkkcJJhEuX/WsKGyQQ=
